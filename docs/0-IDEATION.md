@@ -96,6 +96,8 @@ rel server database Writes  ;;; Update the verb to "Writes".
 > Rel{server database Writes}
 world
 > World{myWorld {database Item{database} server Item{server}} {server {Rel{server database Writes}}}}
+item server set type=external mechanism="Go web server"  ;;; Set or update attributes of an `Item`.
+> Item{server external "Go web server"}
 item server --delete  ;;; Remove the `Item`.
 >
 world
