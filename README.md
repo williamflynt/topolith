@@ -1,4 +1,4 @@
-# `toplith`
+# `topolith`
 
 Interactive, expandable diagrams for complex systems.
 
