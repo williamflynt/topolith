@@ -1,1 +1,3 @@
-module "github.com/williamflynt/topolith"
+module github.com/williamflynt/topolith
+
+go 1.22.3
