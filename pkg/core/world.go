@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/williamflynt/topolith/internal/errors"
+	"slices"
 )
 
 const currentVersion = 1
@@ -27,7 +28,7 @@ type WorldOperations interface {
 
 	RelCreate(fromId, toId string) WorldWithRel                  // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
 	RelDelete(fromId, toId string) World                         // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
-	RelFetch(fromId, toId string, strict bool) []Rel             // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any parent of the associated Item, and the toId or any parent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
+	RelFetch(fromId, toId string, strict bool) []Rel             // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
 	RelSetVerb(fromId, toId, verb string) WorldWithRel           // RelSetVerb sets Rel.Verb. Returns the empty Rel if the Rel doesn't exist.
 	RelSetMechanism(fromId, toId, mechanism string) WorldWithRel // RelSetMechanism sets Rel.Mechanism. Returns the empty Rel if the Rel doesn't exist.
 	RelSetAsync(fromId, toId string, async bool) WorldWithRel    // RelSetAsync sets Rel.Async. Returns the empty Rel if the Rel doesn't exist.
@@ -128,7 +129,7 @@ func (w world) ItemCreate(id string) WorldWithItem {
 	}
 	w.Items[id] = item
 	w.latestItem = &item
-	if err := w.Tree.Add(&item); err != nil {
+	if err := w.Tree.AddOrMove(&item); err != nil {
 		// This shouldn't happen if we're properly syncing the Items map with Tree...
 		w.latestErr = err
 	}
@@ -276,44 +277,151 @@ func (w world) RelFetch(fromId, toId string, strict bool) []Rel {
 		return []Rel{w.Rels[relIdFromIds(fromId, toId)]}
 	}
 	rels := []Rel{}
-	// TODO implement me
-	// Walk the w.Tree to understand relationships, then fetch them from w.Rels.
+	leftIds := append(w.Tree.GetDescendantIds(fromId), fromId)
+	rightIds := append(w.Tree.GetDescendantIds(toId), toId)
+	for _, rel := range w.Rels {
+		if slices.Contains(leftIds, rel.From.Id) && slices.Contains(rightIds, rel.To.Id) {
+			rels = append(rels, rel)
+		}
+	}
 	return rels
 }
 
 func (w world) RelSetVerb(fromId, toId, verb string) WorldWithRel {
-	//TODO implement me
-	panic("implement me")
+	w.resetLatestTrackers()
+	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
+	if !ok {
+		w.latestErr = errors.
+			New("rel not found").
+			UseCode(errors.TopolithErrorNotFound).
+			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
+		return w
+	}
+	rel.Verb = verb
+	w.Rels[rel.id()] = rel
+	w.latestRel = &rel
+	return w
 }
 
 func (w world) RelSetMechanism(fromId, toId, mechanism string) WorldWithRel {
-	//TODO implement me
-	panic("implement me")
+	w.resetLatestTrackers()
+	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
+	if !ok {
+		w.latestErr = errors.
+			New("rel not found").
+			UseCode(errors.TopolithErrorNotFound).
+			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
+		return w
+	}
+	rel.Mechanism = mechanism
+	w.Rels[rel.id()] = rel
+	w.latestRel = &rel
+	return w
 }
 
 func (w world) RelSetAsync(fromId, toId string, async bool) WorldWithRel {
-	//TODO implement me
-	panic("implement me")
+	w.resetLatestTrackers()
+	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
+	if !ok {
+		w.latestErr = errors.
+			New("rel not found").
+			UseCode(errors.TopolithErrorNotFound).
+			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
+		return w
+	}
+	rel.Async = async
+	w.Rels[rel.id()] = rel
+	w.latestRel = &rel
+	return w
 }
 
 func (w world) RelSetExpanded(fromId, toId, expanded string) WorldWithRel {
-	//TODO implement me
-	panic("implement me")
+	w.resetLatestTrackers()
+	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
+	if !ok {
+		w.latestErr = errors.
+			New("rel not found").
+			UseCode(errors.TopolithErrorNotFound).
+			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
+		return w
+	}
+	rel.Expanded = expanded
+	w.Rels[rel.id()] = rel
+	w.latestRel = &rel
+	return w
 }
 
 func (w world) In(childId, parentId string, strict bool) bool {
-	//TODO implement me
-	panic("implement me")
+	w.resetLatestTrackers()
+	tree, ok := w.Tree.Find(parentId)
+	if !ok {
+		return false
+	}
+	return tree.Has(childId, strict)
 }
 
 func (w world) Nest(childId, parentId string) WorldWithItem {
-	//TODO implement me
-	panic("implement me")
+	w.resetLatestTrackers()
+	item, ok := w.ItemFetch(childId)
+	if !ok {
+		w.latestErr = errors.
+			New("childId for Nest not found").
+			UseCode(errors.TopolithErrorNotFound).
+			WithData(errors.KvPair{Key: "childId", Value: childId})
+		return w
+	}
+	w.latestItem = &item
+	if _, ok := w.ItemFetch(parentId); !ok {
+		w.latestErr = errors.
+			New("parentId for Nest not found").
+			UseCode(errors.TopolithErrorNotFound).
+			WithData(errors.KvPair{Key: "parentId", Value: parentId})
+		return w
+	}
+	tree, ok := w.Tree.Find(parentId)
+	if !ok {
+		// The parent Item exists, but its entry in our World Tree doesn't.
+		// This shouldn't happen, so we need to error out fast to fix the underlying issue.
+		// That's why we don't just add the Item (which does exist) to the Tree.
+		w.latestErr = errors.
+			New("parentId for Nest not found in Tree").
+			UseCode(errors.TopolithErrorBadSyncState).
+			WithData(errors.KvPair{Key: "parentId", Value: parentId})
+		return w
+	}
+	w.latestErr = tree.AddOrMove(&item)
+	return w
 }
 
 func (w world) Free(childId, parentId string) WorldWithItem {
-	//TODO implement me
-	panic("implement me")
+	w.resetLatestTrackers()
+	item, ok := w.ItemFetch(childId)
+	if !ok {
+		w.latestErr = errors.
+			New("childId for Free not found").
+			UseCode(errors.TopolithErrorNotFound).
+			WithData(errors.KvPair{Key: "childId", Value: childId})
+		return w
+	}
+	w.latestItem = &item
+	if _, ok := w.ItemFetch(parentId); !ok {
+		w.latestErr = errors.
+			New("parentId for Free not found").
+			UseCode(errors.TopolithErrorNotFound).
+			WithData(errors.KvPair{Key: "parentId", Value: parentId})
+		return w
+	}
+	if _, ok = w.Tree.Find(parentId); !ok {
+		// The parent Item exists, but its entry in our World Tree doesn't.
+		// This shouldn't happen - see note on Nest.
+		w.latestErr = errors.
+			New("parentId for Free not found in Tree").
+			UseCode(errors.TopolithErrorBadSyncState).
+			WithData(errors.KvPair{Key: "parentId", Value: parentId})
+		return w
+	}
+	w.latestErr = w.Tree.AddOrMove(&item)
+	return w
 }
 
 func (w world) Undo() World {
@@ -332,13 +440,11 @@ func (w world) Err() error {
 }
 
 func (w world) Item() (Item, error) {
-	//TODO implement me
-	panic("implement me")
+	return *w.latestItem, w.latestErr
 }
 
 func (w world) Rel() (Rel, error) {
-	//TODO implement me
-	panic("implement me")
+	return *w.latestRel, w.latestErr
 }
 
 // --- INTERNAL HELPERS ---
