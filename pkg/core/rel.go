@@ -1,5 +1,7 @@
 package core
 
+const RelIdSeparator = "::"
+
 // Rel is a struct that represents a relationship between two Item. It might be represented in diagrams as an arrow between two Item renderings.
 type Rel struct {
 	From      Item   `json:"from" gen:"~"` // From is the source Item.
@@ -8,4 +10,10 @@ type Rel struct {
 	Mechanism string `json:"mechanism"`    // Mechanism is the method of implementation of the relationship (ex: HTTPS, JSON).
 	Async     bool   `json:"async"`        // Async is a boolean that represents whether the relationship is asynchronous.
 	Expanded  string `json:"expanded"`     // Expanded is expanded information on the relationship.
+}
+
+// id returns the ID of the Rel.
+// We implement ActionTarget so that we can use Item as a target in Command.Action.
+func (r Rel) id() string {
+	return r.From.id() + RelIdSeparator + r.To.id()
 }
