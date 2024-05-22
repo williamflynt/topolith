@@ -104,13 +104,17 @@ world
 > World{myWorld {database Item{database}}}
 item client && rel client database "Reads once"  ;;; Support for spaces in verbs using double or single quotes.
 > Rel{client database "Reads once"}
-item server && item client in server  ;;; Create a `server` and make the `client` a component of it.
+item server && nest client in server  ;;; Create a `server` and make the `client` a component of it.
 > Tree{database server{client}}
 in? database server  ;;; Check if `database` is part of the `server`.
 > false
-item notReal in client  ;;; Operations with more than one item do not create automatically.
+nest notReal in client  ;;; Operations with more than one item do not create automatically.
 > Error{"Item{notReal} not found in World{myWorld}", 412}
-item! monitor in client  ;;; But we can specify creation with a bang.
+nest! monitor in client  ;;; But we can specify creation with a bang.
+> Tree{database server{client{monitor}}
+free monitor  ;;; Bring the Item to the top level of `World.Tree`.
+> Tree{database server{client} monitor}
+undo  ;;; First class support for reversing operations.
 > Tree{database server{client{monitor}}
 in? monitor server  ;;; The `in?` query traverses the Tree.
 > true
