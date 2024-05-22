@@ -1,6 +1,7 @@
 package core
 
 import (
+	mapset "github.com/deckarep/golang-set/v2"
 	"testing"
 )
 
@@ -38,17 +39,17 @@ func TestNilPointerDereference(t *testing.T) {
 }
 
 func TestEmptyTree(t *testing.T) {
-	if !EmptyTree.Empty() {
-		t.Error("expected EmptyTree to be empty")
+	if !emptyTree.Empty() {
+		t.Error("expected emptyTree to be empty")
 	}
-	if EmptyTree.Item().Id != "" {
-		t.Error("expected EmptyTree to have no item")
+	if emptyTree.Item().Id != "" {
+		t.Error("expected emptyTree to have no item")
 	}
-	if len(EmptyTree.Components()) != 0 {
-		t.Error("expected EmptyTree to have no components")
+	if !emptyTree.Components().IsEmpty() {
+		t.Error("expected emptyTree to have no components")
 	}
-	if EmptyTree.Parent() != &EmptyTree {
-		t.Error("expected EmptyTree to have itself as parent")
+	if emptyTree.Parent() != emptyTree {
+		t.Error("expected emptyTree to have itself as parent")
 	}
 }
 
@@ -57,17 +58,17 @@ func TestTree_Item(t *testing.T) {
 	if root.Item().Id != "root" {
 		t.Errorf("expected root item ID to be 'root', got '%s'", root.Item().Id)
 	}
-	if root.components[0].Item().Id != "child1" {
-		t.Errorf("expected first child item ID to be 'child1', got '%s'", root.components[0].Item().Id)
+	if root.components.ToSlice()[0].Item().Id != "child1" {
+		t.Errorf("expected first child item ID to be 'child1', got '%s'", root.components.ToSlice()[0].Item().Id)
 	}
-	if root.components[1].Item().Id != "child2" {
-		t.Errorf("expected second child item ID to be 'child2', got '%s'", root.components[1].Item().Id)
+	if root.components.ToSlice()[1].Item().Id != "child2" {
+		t.Errorf("expected second child item ID to be 'child2', got '%s'", root.components.ToSlice()[1].Item().Id)
 	}
 }
 
 func TestTree_Components(t *testing.T) {
 	root := createSampleTree()
-	components := root.Components()
+	components := root.components.ToSlice()
 	if len(components) != 2 {
 		t.Errorf("expected 2 components, got %d", len(components))
 	}
@@ -81,16 +82,16 @@ func TestTree_Components(t *testing.T) {
 
 func TestTree_Parent(t *testing.T) {
 	root := createSampleTree()
-	child1 := root.components[0]
-	child2 := root.components[1]
+	child1 := root.components.ToSlice()[0]
+	child2 := root.components.ToSlice()[1]
 	if child1.Parent().Item().Id != "root" {
 		t.Errorf("expected parent of child1 to be 'root', got '%s'", child1.Parent().Item().Id)
 	}
 	if child2.Parent().Item().Id != "root" {
 		t.Errorf("expected parent of child2 to be 'root', got '%s'", child2.Parent().Item().Id)
 	}
-	if root.Parent() != &EmptyTree {
-		t.Errorf("expected parent of root to be EmptyTree, got '%s'", root.Parent().Item().Id)
+	if root.Parent() != emptyTree {
+		t.Errorf("expected parent of root to be emptyTree, got '%s'", root.Parent().Item().Id)
 	}
 }
 
@@ -99,11 +100,11 @@ func TestTree_Empty(t *testing.T) {
 	if root.Empty() {
 		t.Error("expected root not to be empty")
 	}
-	child1 := root.components[0]
+	child1 := root.components.ToSlice()[0]
 	if child1.Empty() {
 		t.Error("expected child1 not to be empty")
 	}
-	child2 := root.components[1]
+	child2 := root.components.ToSlice()[1]
 	if child2.Empty() {
 		t.Error("expected child2 not to be empty")
 	}
@@ -118,6 +119,6 @@ func createSampleTree() *tree {
 	root := &tree{item: &Item{Id: "root"}}
 	child1 := &tree{item: &Item{Id: "child1"}, parent: root}
 	child2 := &tree{item: &Item{Id: "child2"}, parent: root}
-	root.components = []*tree{child1, child2}
+	root.components = mapset.NewSet[Tree](child1, child2)
 	return root
 }

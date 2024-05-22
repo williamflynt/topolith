@@ -90,7 +90,7 @@ item server
 > Item{server}
 rel server database Uses  ;;; Create a Rel from `server` to `database` with verb "Uses".
 > Rel{server database Uses}
-rel? database server ;;; Retrieve the Rel from `database` to `server` or nothing.
+rel? database server ;;; Retrieve the Rel items from `database` to `server` or nothing.
 > 
 rel server database Writes  ;;; Update the verb to "Writes".
 > Rel{server database Writes}

@@ -8,7 +8,7 @@ type TopolithErrorCode int
 // KvPair is a key-value pair where the Value can be represented as a string.
 type KvPair struct {
 	Key   string
-	Value fmt.Stringer
+	Value string
 }
 
 // TopolithError is an error type that is used in the Topolith Core, and implements the error interface.
@@ -23,8 +23,11 @@ type TopolithError struct {
 	errs []error // errs is a list of errors that are wrapped by this error.
 }
 
-func (e TopolithError) WithCode(code TopolithErrorCode) TopolithError {
+func (e TopolithError) UseCode(code TopolithErrorCode) TopolithError {
 	e.Code = code
+	if desc, ok := topolithErrorDescriptions[code]; ok {
+		e.Description = desc
+	}
 	return e
 }
 
