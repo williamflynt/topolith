@@ -435,8 +435,7 @@ func (w world) Redo() World {
 }
 
 func (w world) Err() error {
-	//TODO implement me
-	panic("implement me")
+	return w.latestErr
 }
 
 func (w world) Item() (Item, error) {
