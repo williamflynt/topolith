@@ -22,6 +22,7 @@ type Command interface {
 	Execute(w topolith.World) error
 	Undo(w topolith.World) error
 	String() string
+	FromString(s string) (Command, error)
 }
 
 // CommandTarget represents the type of resource.
@@ -77,27 +78,37 @@ func (c *CreateCommand) String() string {
 	return fmt.Sprintf("Create %v with ID %s", c.ResourceType, c.ID)
 }
 
+func (c *CreateCommand) FromString(s string) (Command, error) {
+	// TODO Implement
+	panic("not implemented")
+}
+
 // SetItemCommand represents a set command for Item.
 type SetItemCommand struct {
 	CommandBase
 	Params ItemSetParams
 }
 
-func (s *SetItemCommand) Execute(w topolith.World) error {
+func (c *SetItemCommand) Execute(w topolith.World) error {
 	// Perform set operation
-	fmt.Printf("Setting Item with ID %s and params %+v\n", s.ID, s.Params)
+	fmt.Printf("Setting Item with ID %s and params %+v\n", c.ID, c.Params)
 	return nil
 }
 
-func (s *SetItemCommand) Undo(w topolith.World) error {
+func (c *SetItemCommand) Undo(w topolith.World) error {
 	// Undo set operation
-	fmt.Printf("Undo setting Item with ID %s\n", s.ID)
+	fmt.Printf("Undo setting Item with ID %s\n", c.ID)
 	// TODO Implement
 	return nil
 }
 
-func (s *SetItemCommand) String() string {
-	return fmt.Sprintf("Set Item with ID %s and params %+v", s.ID, s.Params)
+func (c *SetItemCommand) String() string {
+	return fmt.Sprintf("Set Item with ID %s and params %+v", c.ID, c.Params)
+}
+
+func (c *SetItemCommand) FromString(s string) (Command, error) {
+	// TODO Implement
+	panic("not implemented")
 }
 
 // SetRelCommand represents a set command for Rel.
@@ -106,21 +117,26 @@ type SetRelCommand struct {
 	Params RelSetParams
 }
 
-func (s *SetRelCommand) Execute(w topolith.World) error {
+func (c *SetRelCommand) Execute(w topolith.World) error {
 	// Perform set operation
-	fmt.Printf("Setting Rel from %s to %s with params %+v\n", s.ID, s.ID, s.Params)
+	fmt.Printf("Setting Rel from %s to %s with params %+v\n", c.ID, c.ID, c.Params)
 	return nil
 }
 
-func (s *SetRelCommand) Undo(w topolith.World) error {
+func (c *SetRelCommand) Undo(w topolith.World) error {
 	// Undo set operation
-	fmt.Printf("Undo setting Rel from %s to %s\n", s.ID, s.ID)
+	fmt.Printf("Undo setting Rel from %s to %s\n", c.ID, c.ID)
 	// TODO Implement
 	return nil
 }
 
-func (s *SetRelCommand) String() string {
-	return fmt.Sprintf("Set Rel from %s to %s with params %+v", s.ID, s.ID, s.Params)
+func (c *SetRelCommand) String() string {
+	return fmt.Sprintf("Set Rel from %s to %s with params %+v", c.ID, c.ID, c.Params)
+}
+
+func (c *SetRelCommand) FromString(s string) (Command, error) {
+	// TODO Implement
+	panic("not implemented")
 }
 
 // TODO Additional commands like ClearCommand, NestCommand, DeleteCommand can be similarly defined.

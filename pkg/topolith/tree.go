@@ -2,7 +2,7 @@ package topolith
 
 import (
 	mapset "github.com/deckarep/golang-set/v2"
-	"github.com/williamflynt/topolith/internal/errors"
+	"github.com/williamflynt/topolith/pkg/errors"
 )
 
 var emptyTree = newTree(nil, nil)
