@@ -1,6 +1,7 @@
 package topolith
 
 import (
+	"encoding/json"
 	"github.com/williamflynt/topolith/pkg/errors"
 	"slices"
 	"strconv"
@@ -114,10 +115,11 @@ func (w world) ItemCreate(id string, params ItemSetParams) WorldWithItem {
 		return w
 	}
 	if existing, ok := w.Items[id]; ok {
-		// TODO: Resolve Create vs CreateOrSet - confusing UX? Idempotency, but what's the intent?
-		w.ItemSet(id, params)
-		w.Items[id] = existing
 		w.latestItem = &existing
+		// Check params against existing, and create an error if they don't match.
+		if err := equalItemParams(existing, params); err != nil {
+			w.latestErr = err
+		}
 		return w
 	}
 	item := Item{
@@ -204,6 +206,15 @@ func (w world) RelCreate(fromId, toId string, params RelSetParams) WorldWithRel 
 			New("fromId for Rel not found").
 			UseCode(errors.TopolithErrorNotFound).
 			WithData(errors.KvPair{Key: "fromId", Value: fromId})
+		return w
+	}
+	existing, ok := w.Rels[relIdFromIds(fromId, toId)]
+	if ok {
+		w.latestRel = &existing
+		// Check params against existing, and create an error if they don't match.
+		if err := equalRelParams(existing, params); err != nil {
+			w.latestErr = err
+		}
 		return w
 	}
 	rel := Rel{
@@ -351,6 +362,45 @@ func (w world) Rel() (Rel, error) {
 }
 
 // --- INTERNAL HELPERS ---
+
+func equalItemParams(existing Item, params ItemSetParams) error {
+	if (params.Name != nil && *params.Name != existing.Name) ||
+		(params.Expanded != nil && *params.Expanded != existing.Expanded) ||
+		(params.External != nil && *params.External != existing.External) ||
+		(params.Type != nil && strconv.Itoa(int(existing.Type)) != *params.Type) ||
+		(params.Mechanism != nil && *params.Mechanism != existing.Mechanism) {
+		existingJson, _ := json.Marshal(existing)
+		paramsJson, _ := json.Marshal(params)
+		return errors.
+			New("parameter mismatch").
+			UseCode(errors.TopolithErrorConflict).
+			WithData(
+				errors.KvPair{Key: "object", Value: "Item"},
+				errors.KvPair{Key: "existing", Value: string(existingJson)},
+				errors.KvPair{Key: "params", Value: string(paramsJson)},
+			)
+	}
+	return nil
+}
+
+func equalRelParams(existing Rel, params RelSetParams) error {
+	if (params.Verb != nil && *params.Verb != existing.Verb) ||
+		(params.Mechanism != nil && *params.Mechanism != existing.Mechanism) ||
+		(params.Async != nil && *params.Async != existing.Async) ||
+		(params.Expanded != nil && *params.Expanded != existing.Expanded) {
+		existingJson, _ := json.Marshal(existing)
+		paramsJson, _ := json.Marshal(params)
+		return errors.
+			New("parameter mismatch").
+			UseCode(errors.TopolithErrorConflict).
+			WithData(
+				errors.KvPair{Key: "object", Value: "Rel"},
+				errors.KvPair{Key: "existing", Value: string(existingJson)},
+				errors.KvPair{Key: "params", Value: string(paramsJson)},
+			)
+	}
+	return nil
+}
 
 // resetLatestTrackers resets the latestItem, latestRel, and latestErr fields.
 // We do this before every operation to ensure that we don't accidentally return stale values

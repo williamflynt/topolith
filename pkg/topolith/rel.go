@@ -23,8 +23,8 @@ func relIdFromIds(fromId, toId string) string {
 
 // RelSetParams is a struct that represents the parameters that can be set on a Rel.
 type RelSetParams struct {
-	Verb      *string
-	Mechanism *string
-	Async     *bool
-	Expanded  *string
+	Verb      *string `json:"verb"`
+	Mechanism *string `json:"mechanism"`
+	Async     *bool   `json:"async"`
+	Expanded  *string `json:"expanded"`
 }

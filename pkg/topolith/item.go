@@ -58,9 +58,9 @@ func (i Item) id() string {
 
 // ItemSetParams is a struct that represents the parameters that can be set on an Item.
 type ItemSetParams struct {
-	External  *bool
-	Type      *string
-	Name      *string
-	Mechanism *string
-	Expanded  *string
+	External  *bool   `json:"external"`
+	Type      *string `json:"type"`
+	Name      *string `json:"name"`
+	Mechanism *string `json:"mechanism"`
+	Expanded  *string `json:"expanded"`
 }
