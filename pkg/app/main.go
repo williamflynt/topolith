@@ -6,12 +6,14 @@ import (
 )
 
 type App interface {
-	World() world.World // World returns the world.World associated with this App.
-	History() []Command // Commands returns the list of Command that have been executed for the present state of the world.World.
-	Undo() (error, int) // Undo reverses the last operation on the World. If there are no operations to undo, noop. Return any error that occurred and the number of operations left to undo.
-	Redo() (error, int) // Redo executes the most recently reversed operation on the World. If there are no operations to redo, noop. Return any error that occurred and the number of operations left to redo.
-	CanUndo() bool      // CanUndo indicates whether more Command objects exist to Undo.
-	CanRedo() bool      // CanRedo indicates whether more Command objects exist to Redo.
+	World() world.World        // World returns the world.World associated with this App.
+	Exec(c Command) error      // Exec executes the Command and adds it to History, returning any error.
+	ExecString(s string) error // ExecString converts the given string to a valid Command and executes it. If the command is invalid, return an error. Return any error from executing a valid Command.
+	History() []Command        // Commands returns the list of Command that have been executed for the present state of the world.World.
+	Undo() (error, int)        // Undo reverses the last operation on the World. If there are no operations to undo, noop. Return any error that occurred and the number of operations left to undo.
+	Redo() (error, int)        // Redo executes the most recently reversed operation on the World. If there are no operations to redo, noop. Return any error that occurred and the number of operations left to redo.
+	CanUndo() bool             // CanUndo indicates whether more Command objects exist to Undo.
+	CanRedo() bool             // CanRedo indicates whether more Command objects exist to Redo.
 }
 
 // app implements App.
@@ -34,6 +36,18 @@ func NewHistory(world world.World) (App, error) {
 
 func (h *app) World() world.World {
 	return h.world
+}
+
+func (h *app) Exec(c Command) error {
+	return c.Execute(h.world)
+}
+
+func (h *app) ExecString(s string) error {
+	c, err := ParseCommand(s)
+	if err != nil {
+		return err
+	}
+	return h.Exec(c)
 }
 
 func (h *app) History() []Command {
