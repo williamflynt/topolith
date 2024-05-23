@@ -303,25 +303,13 @@ func parseCommand(s string) (Command, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &ItemCreateCommand{
-				CommandBase: CommandBase{
-					ResourceType: ItemTarget,
-					Id:           strings.TrimSpace(id),
-				},
-				Params: params,
-			}, nil
+			return MakeItemCreateCommand(strings.TrimSpace(id), params)
 		case string(Delete):
 			id, rest := scanWord(rest)
 			if rest != "" {
 				return nil, errors.New("extra arguments after delete").UseCode(errors.TopolithErrorInvalid)
 			}
-			return &ItemDeleteCommand{
-				CommandBase: CommandBase{
-					ResourceType: ItemTarget,
-					Id:           strings.TrimSpace(id),
-				},
-				oldParams: topolith.ItemSetParams{},
-			}, nil
+			return MakeItemDeleteCommand(strings.TrimSpace(id))
 		case string(Set):
 		default:
 			// Setting params.
@@ -335,14 +323,7 @@ func parseCommand(s string) (Command, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &ItemSetCommand{
-				CommandBase: CommandBase{
-					ResourceType: ItemTarget,
-					Id:           strings.TrimSpace(id),
-				},
-				Params:    params,
-				oldParams: topolith.ItemSetParams{},
-			}, nil
+			return MakeItemSetCommand(strings.TrimSpace(id), params)
 		}
 	case string(RelTarget):
 		secondWord, rest := scanWord(rest)
@@ -354,29 +335,14 @@ func parseCommand(s string) (Command, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &RelCreateCommand{
-				CommandBase: CommandBase{
-					ResourceType: RelTarget,
-					Id:           strings.TrimSpace(id),
-				},
-				ToId:   strings.TrimSpace(toId),
-				Params: params,
-			}, nil
+			return MakeRelCreateCommand(strings.TrimSpace(id), strings.TrimSpace(toId), params)
 		case string(Delete):
 			id, rest := scanWord(rest)
 			toId, rest := scanWord(rest)
 			if rest != "" {
 				return nil, errors.New("extra arguments after delete").UseCode(errors.TopolithErrorInvalid)
 			}
-			return &RelDeleteCommand{
-				CommandBase: CommandBase{
-					ResourceType: RelTarget,
-					Id:           strings.TrimSpace(id),
-				},
-				ToId:      strings.TrimSpace(toId),
-				oldParams: topolith.RelSetParams{},
-			}, nil
-
+			return MakeRelDeleteCommand(strings.TrimSpace(id), strings.TrimSpace(toId))
 		case string(Set):
 		default:
 			// Setting params.
@@ -391,15 +357,7 @@ func parseCommand(s string) (Command, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &RelSetCommand{
-				CommandBase: CommandBase{
-					ResourceType: RelTarget,
-					Id:           strings.TrimSpace(id),
-				},
-				ToId:      strings.TrimSpace(toId),
-				Params:    params,
-				oldParams: topolith.RelSetParams{},
-			}, nil
+			return MakeRelSetCommand(strings.TrimSpace(id), strings.TrimSpace(toId), params)
 		}
 	case string(Nest):
 		id, rest := scanWord(rest)
@@ -411,24 +369,13 @@ func parseCommand(s string) (Command, error) {
 		if rest != "" {
 			return nil, errors.New("extra arguments after nest").UseCode(errors.TopolithErrorInvalid)
 		}
-		return &ItemNestCommand{
-			CommandBase: CommandBase{
-				ResourceType: ItemTarget,
-				Id:           strings.TrimSpace(id),
-			},
-			ParentId: strings.TrimSpace(pid),
-		}, nil
+		return MakeNestCommand(strings.TrimSpace(id), strings.TrimSpace(pid))
 	case string(Free):
 		id, rest := scanWord(rest)
 		if rest != "" {
 			return nil, errors.New("extra arguments after free").UseCode(errors.TopolithErrorInvalid)
 		}
-		return &ItemFreeCommand{
-			CommandBase: CommandBase{
-				ResourceType: ItemTarget,
-				Id:           strings.TrimSpace(id),
-			},
-		}, nil
+		return MakeItemFreeCommand(strings.TrimSpace(id))
 	default:
 		return nil, errors.New("unknown command").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "command", Value: s})
 	}

@@ -78,111 +78,93 @@ func (h *history) CanRedo() bool {
 	return h.commandsIdx < len(h.commands)-1
 }
 
-// MakeCommand creates commands based on the verb and resource type.
-func (h *history) MakeCommand(resourceType CommandTarget, id string, verb CommandVerb, params interface{}) (Command, error) {
-	switch resourceType {
-	case ItemTarget:
-		switch verb {
-		case Create:
-			p, ok := params.(topolith.ItemSetParams)
-			if !ok {
-				return nil, errors.New("params must be of type ItemSetParams").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &ItemCreateCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				Params: p,
-			}, nil
-		case Set:
-			p, ok := params.(topolith.ItemSetParams)
-			if !ok {
-				return nil, errors.New("params must be of type ItemSetParams").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &ItemSetCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				Params: p,
-			}, nil
-		case Delete:
-			return &ItemDeleteCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-			}, nil
-		case Nest:
-			pid, ok := params.(string)
-			if !ok {
-				return nil, errors.New("params must be of type string").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &ItemNestCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				ParentId: pid,
-			}, nil
-		case Free:
-			parentId, ok := h.World().Parent(id)
-			if !ok {
-				return nil, errors.New("cannot find Item in Tree").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "id", Value: id})
-			}
-			return &ItemFreeCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				oldParentId: parentId,
-			}, nil
-		default:
-			return nil, errors.New("unknown verb for Item").UseCode(errors.TopolithErrorInvalid)
-		}
-	case RelTarget:
-		switch verb {
-		case Create:
-			p, ok := params.(topolith.RelSetParams)
-			if !ok {
-				return nil, errors.New("params must be of type RelSetParams").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &RelCreateCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				Params: p,
-			}, nil
-		case Set:
-			p, ok := params.(topolith.RelSetParams)
-			if !ok {
-				return nil, errors.New("params must be of type RelSetParams").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &RelSetCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				Params: p,
-			}, nil
-		case Delete:
-			return &RelDeleteCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-			}, nil
-		default:
-			return nil, errors.New("unknown verb for Rel").UseCode(errors.TopolithErrorInvalid)
-		}
-	default:
-		return nil, errors.New("unknown resource type").UseCode(errors.TopolithErrorInvalid)
-	}
-}
+// --- EXPORTED FUNCTIONS ---
 
 // ParseCommand parses a string into a Command.
-func (h *history) ParseCommand(s string) (Command, error) {
+func ParseCommand(s string) (Command, error) {
 	return parseCommand(s)
+}
+
+func MakeItemCreateCommand(id string, params topolith.ItemSetParams) (Command, error) {
+	return &ItemCreateCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+		Params: params,
+	}, nil
+}
+
+func MakeItemSetCommand(id string, params topolith.ItemSetParams) (Command, error) {
+	return &ItemSetCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+		Params:    params,
+		oldParams: topolith.ItemSetParams{},
+	}, nil
+}
+
+func MakeItemDeleteCommand(id string) (Command, error) {
+	return &ItemDeleteCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+		oldParams: topolith.ItemSetParams{},
+	}, nil
+}
+
+func MakeItemFreeCommand(id string) (Command, error) {
+	return &ItemFreeCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+	}, nil
+}
+
+func MakeNestCommand(id string, parentId string) (Command, error) {
+	return &ItemNestCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+		ParentId: parentId,
+	}, nil
+}
+
+func MakeRelCreateCommand(fromId string, toId string, params topolith.RelSetParams) (Command, error) {
+	return &RelCreateCommand{
+		CommandBase: CommandBase{
+			ResourceType: RelTarget,
+			Id:           fromId,
+		},
+		ToId:   toId,
+		Params: params,
+	}, nil
+}
+
+func MakeRelSetCommand(fromId string, toId string, params topolith.RelSetParams) (Command, error) {
+	return &RelSetCommand{
+		CommandBase: CommandBase{
+			ResourceType: RelTarget,
+			Id:           fromId,
+		},
+		ToId:      toId,
+		Params:    params,
+		oldParams: topolith.RelSetParams{},
+	}, nil
+}
+
+func MakeRelDeleteCommand(fromId string, toId string) (Command, error) {
+	return &RelDeleteCommand{
+		CommandBase: CommandBase{
+			ResourceType: RelTarget,
+			Id:           fromId,
+		},
+		ToId:      toId,
+		oldParams: topolith.RelSetParams{},
+	}, nil
 }
