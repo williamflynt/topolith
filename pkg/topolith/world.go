@@ -33,7 +33,7 @@ type WorldOperations interface {
 	Parent(childId string) (string, bool)          // Parent returns the ID of the parent Item of the given child Item. An empty string is returned if the child Item has no parent. The okay boolean is false if the childId isn't found.
 	Components(childId string) ([]string, bool)    // Components returns the IDs of the child Items of the given parent Item. An empty slice is returned if the parent Item has no children. The okay boolean is false if the parent Item isn't found.
 	Nest(childId, parentId string) WorldWithItem   // Nest nests a child Item under a parent Item. If the parent doesn't exist, noop.
-	Free(childId, parentId string) WorldWithItem
+	Free(childId string) WorldWithItem
 
 	Err() error // Err returns an error if the last operation failed, or nil if it succeeded.
 }
@@ -343,7 +343,7 @@ func (w *world) Nest(childId, parentId string) WorldWithItem {
 	return w
 }
 
-func (w *world) Free(childId, parentId string) WorldWithItem {
+func (w *world) Free(childId string) WorldWithItem {
 	w.resetLatestTrackers()
 	item, ok := w.ItemFetch(childId)
 	if !ok {
@@ -354,22 +354,6 @@ func (w *world) Free(childId, parentId string) WorldWithItem {
 		return w
 	}
 	w.latestItem = &item
-	if _, ok := w.ItemFetch(parentId); !ok {
-		w.latestErr = errors.
-			New("parentId for Free not found").
-			UseCode(errors.TopolithErrorNotFound).
-			WithData(errors.KvPair{Key: "parentId", Value: parentId})
-		return w
-	}
-	if _, ok = w.Tree.Find(parentId); !ok {
-		// The parent Item exists, but its entry in our World Tree doesn't.
-		// This shouldn't happen - see note on Nest.
-		w.latestErr = errors.
-			New("parentId for Free not found in Tree").
-			UseCode(errors.TopolithErrorBadSyncState).
-			WithData(errors.KvPair{Key: "parentId", Value: parentId})
-		return w
-	}
 	w.latestErr = w.Tree.AddOrMove(&item)
 	return w
 }

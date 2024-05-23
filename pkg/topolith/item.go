@@ -16,7 +16,7 @@ const (
 	Code
 )
 
-func itemTypeFromString(s string) ItemType {
+func ItemTypeFromString(s string) ItemType {
 	switch s {
 	case "person":
 		return Person
@@ -38,6 +38,31 @@ func itemTypeFromString(s string) ItemType {
 		return Code
 	default:
 		return 0
+	}
+}
+
+func StringFromItemType(t ItemType) string {
+	switch t {
+	case Person:
+		return "person"
+	case Database:
+		return "database"
+	case Queue:
+		return "queue"
+	case Blobstore:
+		return "blobstore"
+	case Browser:
+		return "browser"
+	case Mobile:
+		return "mobile"
+	case Server:
+		return "server"
+	case Device:
+		return "device"
+	case Code:
+		return "code"
+	default:
+		return ""
 	}
 }
 

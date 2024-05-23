@@ -1,10 +1,12 @@
-package history
+package commands
 
 import (
 	"fmt"
+	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/topolith"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 var kvPattern = regexp.MustCompile(`\b(\w+)="?(\w+)"?\b`)
@@ -25,7 +27,6 @@ type Command interface {
 	Execute(w topolith.World) error
 	Undo(w topolith.World) error
 	String() string
-	FromString(s string) (Command, error)
 }
 
 // CommandTarget represents the type of resource.
@@ -47,31 +48,27 @@ type CommandBase struct {
 // ItemCreateCommand represents a create command.
 type ItemCreateCommand struct {
 	CommandBase
-	Params topolith.ItemSetParams
+	Params   topolith.ItemSetParams
+	noCreate bool
 }
 
 func (c *ItemCreateCommand) Execute(w topolith.World) error {
-	w.ItemCreate(c.Id, c.Params)
-	return w.Err()
+	if _, ok := w.ItemFetch(c.Id); ok {
+		c.noCreate = true
+		return nil
+	}
+	return w.ItemCreate(c.Id, c.Params).Err()
 }
 
 func (c *ItemCreateCommand) Undo(w topolith.World) error {
-	// TODO(wf 23 May 2024): What if I call create multiple times, then undo the most recent?
-	//  I would expect, as a user, that the state of World would be whatever it was before,
-	//  which means undoing the second, redundant create wouldn't change anything.
-	//  But here we delete it. How to handle?
-	w.ItemDelete(c.Id)
-	return w.Err()
+	if c.noCreate {
+		return nil
+	}
+	return w.ItemDelete(c.Id).Err()
 }
 
 func (c *ItemCreateCommand) String() string {
-
-	return fmt.Sprintf("%s %s %s", c.ResourceType, c.Id)
-}
-
-func (c *ItemCreateCommand) FromString(s string) (Command, error) {
-	// TODO Implement
-	panic("not implemented")
+	return fmt.Sprintf(`%s %s "%s" %s`, c.ResourceType, Create, c.Id, itemParamsToString(c.Params))
 }
 
 // ItemSetCommand represents a set command for Item.
@@ -79,56 +76,64 @@ type ItemSetCommand struct {
 	CommandBase
 	Params    topolith.ItemSetParams
 	OldParams topolith.ItemSetParams
+	noSet     bool
 }
 
 func (c *ItemSetCommand) Execute(w topolith.World) error {
-	// Perform set operation
-	fmt.Printf("Setting Item with Id %s and params %+v\n", c.Id, c.Params)
-	return nil
+	item, ok := w.ItemFetch(c.Id)
+	if !ok {
+		c.noSet = true
+		return errors.New("could not find Item").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{"id", c.Id})
+	}
+	c.OldParams.External = boolPtr(item.External)
+	c.OldParams.Name = strPtr(item.Name)
+	c.OldParams.Type = strPtr(topolith.StringFromItemType(item.Type))
+	c.OldParams.Mechanism = strPtr(item.Mechanism)
+	c.OldParams.Expanded = strPtr(item.Expanded)
+	return w.ItemSet(c.Id, c.Params).Err()
 }
 
 func (c *ItemSetCommand) Undo(w topolith.World) error {
-	// Undo set operation
-	fmt.Printf("Undo setting Item with Id %s\n", c.Id)
-	// TODO Implement
-	return nil
+	if c.noSet {
+		return nil
+	}
+	return w.ItemSet(c.Id, c.OldParams).Err()
 }
 
 func (c *ItemSetCommand) String() string {
-	return fmt.Sprintf("Set Item with Id %s and params %+v", c.Id, c.Params)
-}
-
-func (c *ItemSetCommand) FromString(s string) (Command, error) {
-	// TODO Implement
-	panic("not implemented")
+	return fmt.Sprintf(`%s "%s" %s`, c.ResourceType, c.Id, itemParamsToString(c.Params))
 }
 
 // ItemDeleteCommand represents a delete command for Item.
 type ItemDeleteCommand struct {
 	CommandBase
 	OldParams topolith.ItemSetParams
+	noDelete  bool
 }
 
 func (c *ItemDeleteCommand) Execute(w topolith.World) error {
-	// Perform delete operation
-	fmt.Printf("Deleting Item with Id %s\n", c.Id)
-	return nil
+	item, ok := w.ItemFetch(c.Id)
+	if !ok {
+		c.noDelete = true
+		return nil
+	}
+	c.OldParams.External = boolPtr(item.External)
+	c.OldParams.Name = strPtr(item.Name)
+	c.OldParams.Type = strPtr(topolith.StringFromItemType(item.Type))
+	c.OldParams.Mechanism = strPtr(item.Mechanism)
+	c.OldParams.Expanded = strPtr(item.Expanded)
+	return w.ItemDelete(c.Id).Err()
 }
 
 func (c *ItemDeleteCommand) Undo(w topolith.World) error {
-	// Undo delete operation
-	fmt.Printf("Undo deleting Item with Id %s\n", c.Id)
-	// TODO Implement
-	return nil
+	if c.noDelete {
+		return nil
+	}
+	return w.ItemCreate(c.Id, c.OldParams).Err()
 }
 
 func (c *ItemDeleteCommand) String() string {
-	return fmt.Sprintf("Delete Item with Id %s", c.Id)
-}
-
-func (c *ItemDeleteCommand) FromString(s string) (Command, error) {
-	// TODO Implement
-	panic("not implemented")
+	return fmt.Sprintf(`%s %s "%s"`, c.ResourceType, Delete, c.Id)
 }
 
 // ItemNestCommand represents a nest command for Item.
@@ -136,28 +141,31 @@ type ItemNestCommand struct {
 	CommandBase
 	ParentId    string
 	OldParentId string
+	noNest      bool
 }
 
 func (c *ItemNestCommand) Execute(w topolith.World) error {
-	// Perform nest operation
-	fmt.Printf("Nesting Item with Id %s under Item with Id %s\n", c.Id, c.ParentId)
-	return nil
+	oldParentId, found := w.Parent(c.Id)
+	if !found {
+		c.noNest = true
+		return errors.New("could not find Item").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
+	}
+	c.OldParentId = oldParentId
+	return w.Nest(c.Id, c.ParentId).Err()
 }
 
 func (c *ItemNestCommand) Undo(w topolith.World) error {
-	// Undo nest operation
-	fmt.Printf("Undo nesting Item with Id %s under Item with Id %s\n", c.Id, c.ParentId)
-	// TODO Implement
-	return nil
+	if c.noNest {
+		return nil
+	}
+	if c.OldParentId == "" {
+		return w.Free(c.Id).Err()
+	}
+	return w.Nest(c.Id, c.OldParentId).Err()
 }
 
 func (c *ItemNestCommand) String() string {
-	return fmt.Sprintf("Nest Item with Id %s under Item with Id %s", c.Id, c.ParentId)
-}
-
-func (c *ItemNestCommand) FromString(s string) (Command, error) {
-	// TODO Implement
-	panic("not implemented")
+	return fmt.Sprintf(`%s "%s" in "%s"`, Nest, c.Id, c.ParentId)
 }
 
 // ItemFreeCommand represents a free command for Item.
@@ -167,108 +175,136 @@ type ItemFreeCommand struct {
 }
 
 func (c *ItemFreeCommand) Execute(w topolith.World) error {
-	// Perform nest operation
-	fmt.Printf("Freeing Item with Id %s to root\n", c.Id)
-	return nil
+	oldParentId, found := w.Parent(c.Id)
+	if !found {
+		return errors.New("could not find Item").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
+	}
+	c.OldParentId = oldParentId
+	return w.Free(c.Id).Err()
 }
 
 func (c *ItemFreeCommand) Undo(w topolith.World) error {
-	// Undo nest operation
-	fmt.Printf("Undo freeing Item with Id %s under Item with Id %s\n", c.Id, c.OldParentId)
-	// TODO Implement
-	return nil
+	if c.OldParentId == "" {
+		return nil
+	}
+	return w.Nest(c.Id, c.OldParentId).Err()
 }
 
 func (c *ItemFreeCommand) String() string {
-	return fmt.Sprintf("free Item with Id %s", c.Id)
-}
-
-func (c *ItemFreeCommand) FromString(s string) (Command, error) {
-	// TODO Implement
-	panic("not implemented")
+	return fmt.Sprintf(`%s "%s"`, Free, c.Id)
 }
 
 // RelCreateCommand represents a create command for Rel.
 type RelCreateCommand struct {
 	CommandBase
-	Params topolith.RelSetParams
+	ToId     string
+	Params   topolith.RelSetParams
+	noCreate bool
 }
 
 func (c *RelCreateCommand) Execute(w topolith.World) error {
-	// Perform create operation
-	fmt.Printf("Creating Rel from %s to %s with params %+v\n", c.Id, c.Id, c.Params)
-	return nil
+	if rels := w.RelFetch(c.Id, c.ToId, true); len(rels) > 0 {
+		c.noCreate = true
+		return nil
+	}
+	return w.RelCreate(c.Id, c.ToId, c.Params).Err()
 }
 
 func (c *RelCreateCommand) Undo(w topolith.World) error {
-	// Undo create operation
-	fmt.Printf("Undo creating Rel from %s to %s\n", c.Id, c.Id)
-	// TODO Implement
-	return nil
+	if c.noCreate {
+		return nil
+	}
+	return w.RelDelete(c.Id, c.ToId).Err()
 }
 
 func (c *RelCreateCommand) String() string {
-	return fmt.Sprintf("Create Rel from %s to %s with params %+v", c.Id, c.Id, c.Params)
-}
-
-func (c *RelCreateCommand) FromString(s string) (Command, error) {
-	// TODO Implement
-	panic("not implemented")
+	return fmt.Sprintf(`%s %s "%s" "%s" %s`, c.ResourceType, Create, c.Id, c.ToId, relParamsToString(c.Params))
 }
 
 // RelSetCommand represents a set command for Rel.
 type RelSetCommand struct {
 	CommandBase
-	Params topolith.RelSetParams
+	ToId      string
+	Params    topolith.RelSetParams
+	OldParams topolith.RelSetParams
+	noSet     bool
 }
 
 func (c *RelSetCommand) Execute(w topolith.World) error {
-	// Perform set operation
-	fmt.Printf("Setting Rel from %s to %s with params %+v\n", c.Id, c.Id, c.Params)
-	return nil
+	rels := w.RelFetch(c.Id, c.ToId, true)
+	if len(rels) == 0 {
+		c.noSet = true
+		return errors.New("could not find Rel").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
+	}
+	rel := rels[0]
+	c.OldParams.Verb = strPtr(rel.Verb)
+	c.OldParams.Mechanism = strPtr(rel.Mechanism)
+	c.OldParams.Async = boolPtr(rel.Async)
+	c.OldParams.Expanded = strPtr(rel.Expanded)
+	return w.RelSet(c.Id, c.ToId, c.Params).Err()
 }
 
 func (c *RelSetCommand) Undo(w topolith.World) error {
-	// Undo set operation
-	fmt.Printf("Undo setting Rel from %s to %s\n", c.Id, c.Id)
-	// TODO Implement
-	return nil
+	if c.noSet {
+		return nil
+	}
+	return w.RelSet(c.Id, c.ToId, c.OldParams).Err()
 }
 
 func (c *RelSetCommand) String() string {
-	return fmt.Sprintf("Set Rel from %s to %s with params %+v", c.Id, c.Id, c.Params)
-}
-
-func (c *RelSetCommand) FromString(s string) (Command, error) {
-	// TODO Implement
-	panic("not implemented")
+	return fmt.Sprintf(`%s "%s" "%s" %s`, c.ResourceType, c.Id, c.ToId, relParamsToString(c.Params))
 }
 
 // RelDeleteCommand represents a delete command for Rel.
 type RelDeleteCommand struct {
 	CommandBase
+	OldParams topolith.RelSetParams
+	noDelete  bool
 }
 
 func (c *RelDeleteCommand) Execute(w topolith.World) error {
-	// Perform delete operation
-	fmt.Printf("Deleting Rel from %s to %s\n", c.Id, c.Id)
-	return nil
+	rels := w.RelFetch(c.Id, c.Id, true)
+	if len(rels) == 0 {
+		c.noDelete = true
+		return nil
+	}
+	rel := rels[0]
+	c.OldParams.Verb = strPtr(rel.Verb)
+	c.OldParams.Mechanism = strPtr(rel.Mechanism)
+	c.OldParams.Async = boolPtr(rel.Async)
+	c.OldParams.Expanded = strPtr(rel.Expanded)
+	return w.RelDelete(c.Id, c.Id).Err()
 }
 
 func (c *RelDeleteCommand) Undo(w topolith.World) error {
-	// Undo delete operation
-	fmt.Printf("Undo deleting Rel from %s to %s\n", c.Id, c.Id)
-	// TODO Implement
-	return nil
+	if c.noDelete {
+		return nil
+	}
+	return w.RelCreate(c.Id, c.Id, c.OldParams).Err()
 }
 
 func (c *RelDeleteCommand) String() string {
-	return fmt.Sprintf("Delete Rel from %s to %s", c.Id, c.Id)
+	return fmt.Sprintf(`%s %s "%s"`, c.ResourceType, Delete, c.Id)
 }
 
-func (c *RelDeleteCommand) FromString(s string) (Command, error) {
-	// TODO Implement
-	panic("not implemented")
+// --- EXPORTED FUNCTIONS ---
+
+// ParseCommand parses a Command from a string.
+func ParseCommand(s string) (Command, error) {
+	// TODO: Complete implementation. It turns out I'm making a grammar/protocol...
+	firstWord := scanWord(s)
+	switch firstWord {
+	case string(ItemTarget):
+		return nil, nil
+	case string(RelTarget):
+		return nil, nil
+	case string(Nest):
+		return nil, nil
+	case string(Free):
+		return nil, nil
+	default:
+		return nil, errors.New("unknown command").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "command", Value: s})
+	}
 }
 
 // --- INTERNAL FUNCTIONS ---
@@ -383,4 +419,24 @@ func relParamsFromString(s string) (topolith.RelSetParams, error) {
 		}
 	}
 	return params, nil
+}
+
+// scanWord scans the first word from a string.
+// Scan over s until the first non-alpha character - take that as the first word.
+// Ex: "item! 123123" -> "item"
+func scanWord(s string) string {
+	for i, r := range s {
+		if !unicode.IsLetter(r) {
+			return s[:i]
+		}
+	}
+	return s
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }

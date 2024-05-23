@@ -1,4 +1,4 @@
-package history
+package commands
 
 import (
 	"github.com/williamflynt/topolith/pkg/errors"
