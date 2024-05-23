@@ -2,7 +2,6 @@ package history
 
 import (
 	"fmt"
-	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/topolith"
 )
 
@@ -14,6 +13,7 @@ const (
 	Set    CommandVerb = "set"
 	Delete CommandVerb = "delete"
 	Nest   CommandVerb = "nest"
+	Free   CommandVerb = "free"
 )
 
 // Command is the interface that all commands must implement.
@@ -71,7 +71,8 @@ func (c *ItemCreateCommand) FromString(s string) (Command, error) {
 // ItemSetCommand represents a set command for Item.
 type ItemSetCommand struct {
 	CommandBase
-	Params topolith.ItemSetParams
+	Params    topolith.ItemSetParams
+	OldParams topolith.ItemSetParams
 }
 
 func (c *ItemSetCommand) Execute(w topolith.World) error {
@@ -99,6 +100,7 @@ func (c *ItemSetCommand) FromString(s string) (Command, error) {
 // ItemDeleteCommand represents a delete command for Item.
 type ItemDeleteCommand struct {
 	CommandBase
+	OldParams topolith.ItemSetParams
 }
 
 func (c *ItemDeleteCommand) Execute(w topolith.World) error {
@@ -126,7 +128,8 @@ func (c *ItemDeleteCommand) FromString(s string) (Command, error) {
 // ItemNestCommand represents a nest command for Item.
 type ItemNestCommand struct {
 	CommandBase
-	ParentId string
+	ParentId    string
+	OldParentId string
 }
 
 func (c *ItemNestCommand) Execute(w topolith.World) error {
@@ -147,6 +150,34 @@ func (c *ItemNestCommand) String() string {
 }
 
 func (c *ItemNestCommand) FromString(s string) (Command, error) {
+	// TODO Implement
+	panic("not implemented")
+}
+
+// ItemFreeCommand represents a free command for Item.
+type ItemFreeCommand struct {
+	CommandBase
+	OldParentId string
+}
+
+func (c *ItemFreeCommand) Execute(w topolith.World) error {
+	// Perform nest operation
+	fmt.Printf("Nesting Item with Id %s under Item with Id %s\n", c.Id)
+	return nil
+}
+
+func (c *ItemFreeCommand) Undo(w topolith.World) error {
+	// Undo nest operation
+	fmt.Printf("Undo nesting Item with Id %s under Item with Id %s\n", c.Id)
+	// TODO Implement
+	return nil
+}
+
+func (c *ItemFreeCommand) String() string {
+	return fmt.Sprintf("Nest Item with Id %s under Item with Id %s", c.Id)
+}
+
+func (c *ItemFreeCommand) FromString(s string) (Command, error) {
 	// TODO Implement
 	panic("not implemented")
 }
@@ -232,96 +263,4 @@ func (c *RelDeleteCommand) String() string {
 func (c *RelDeleteCommand) FromString(s string) (Command, error) {
 	// TODO Implement
 	panic("not implemented")
-}
-
-// CommandFactory creates commands based on the verb and resource type.
-func CommandFactory(resourceType CommandTarget, id string, verb CommandVerb, params interface{}) (Command, error) {
-	switch resourceType {
-	case ItemTarget:
-		switch verb {
-		case Create:
-			p, ok := params.(topolith.ItemSetParams)
-			if !ok {
-				return nil, errors.New("params must be of type ItemSetParams").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &ItemCreateCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				Params: p,
-			}, nil
-		case Set:
-			p, ok := params.(topolith.ItemSetParams)
-			if !ok {
-				return nil, errors.New("params must be of type ItemSetParams").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &ItemSetCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				Params: p,
-			}, nil
-		case Delete:
-			return &ItemDeleteCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-			}, nil
-		case Nest:
-			pid, ok := params.(string)
-			if !ok {
-				return nil, errors.New("params must be of type string").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &ItemNestCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				ParentId: pid,
-			}, nil
-		default:
-			return nil, errors.New("unknown verb for Item").UseCode(errors.TopolithErrorInvalid)
-		}
-	case RelTarget:
-		switch verb {
-		case Create:
-			p, ok := params.(topolith.RelSetParams)
-			if !ok {
-				return nil, errors.New("params must be of type RelSetParams").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &RelCreateCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				Params: p,
-			}, nil
-		case Set:
-			p, ok := params.(topolith.RelSetParams)
-			if !ok {
-				return nil, errors.New("params must be of type RelSetParams").UseCode(errors.TopolithErrorInvalid)
-			}
-			return &RelSetCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-				Params: p,
-			}, nil
-		case Delete:
-			return &RelDeleteCommand{
-				CommandBase: CommandBase{
-					ResourceType: resourceType,
-					Id:           id,
-				},
-			}, nil
-		default:
-			return nil, errors.New("unknown verb for Rel").UseCode(errors.TopolithErrorInvalid)
-		}
-	default:
-		return nil, errors.New("unknown resource type").UseCode(errors.TopolithErrorInvalid)
-	}
 }

@@ -30,6 +30,8 @@ type WorldOperations interface {
 	RelSet(fromId, toId string, params RelSetParams) WorldWithRel    // RelSet sets the not-nil attributes from RelSetParams on Rel that has the given fromId and toId.
 
 	In(childId, parentId string, strict bool) bool // In checks if a child Item is nested anywhere under a parent Item. If strict is true, it will only return true if the childId and parentId match exactly.
+	Parent(childId string) (string, bool)          // Parent returns the ID of the parent Item of the given child Item. An empty string is returned if the child Item has no parent. The okay boolean is false if the childId isn't found.
+	Components(childId string) ([]string, bool)    // Components returns the IDs of the child Items of the given parent Item. An empty slice is returned if the parent Item has no children. The okay boolean is false if the parent Item isn't found.
 	Nest(childId, parentId string) WorldWithItem   // Nest nests a child Item under a parent Item. If the parent doesn't exist, noop.
 	Free(childId, parentId string) WorldWithItem
 
@@ -78,7 +80,7 @@ type world struct {
 }
 
 func CreateWorld(name string) World {
-	return world{
+	return &world{
 		Version_:  currentVersion,
 		Id_:       name,
 		Name_:     name,
@@ -92,23 +94,23 @@ func CreateWorld(name string) World {
 	}
 }
 
-func (w world) Version() int {
+func (w *world) Version() int {
 	return w.Version_
 }
 
-func (w world) Id() string {
+func (w *world) Id() string {
 	return w.Id_
 }
 
-func (w world) Name() string {
+func (w *world) Name() string {
 	return w.Name_
 }
 
-func (w world) Expanded() string {
+func (w *world) Expanded() string {
 	return w.Expanded_
 }
 
-func (w world) ItemCreate(id string, params ItemSetParams) WorldWithItem {
+func (w *world) ItemCreate(id string, params ItemSetParams) WorldWithItem {
 	w.resetLatestTrackers()
 	if id == "" {
 		w.latestErr = errors.New("id cannot be empty")
@@ -135,7 +137,7 @@ func (w world) ItemCreate(id string, params ItemSetParams) WorldWithItem {
 	return w
 }
 
-func (w world) ItemDelete(id string) World {
+func (w *world) ItemDelete(id string) World {
 	w.resetLatestTrackers()
 	if id == "" {
 		w.latestErr = errors.New("id cannot be empty")
@@ -151,12 +153,12 @@ func (w world) ItemDelete(id string) World {
 	return w
 }
 
-func (w world) ItemFetch(id string) (Item, bool) {
+func (w *world) ItemFetch(id string) (Item, bool) {
 	item, ok := w.Items[id]
 	return item, ok
 }
 
-func (w world) ItemSet(id string, params ItemSetParams) WorldWithItem {
+func (w *world) ItemSet(id string, params ItemSetParams) WorldWithItem {
 	w.resetLatestTrackers()
 	item, ok := w.Items[id]
 	if !ok {
@@ -190,7 +192,7 @@ func (w world) ItemSet(id string, params ItemSetParams) WorldWithItem {
 	return w
 }
 
-func (w world) RelCreate(fromId, toId string, params RelSetParams) WorldWithRel {
+func (w *world) RelCreate(fromId, toId string, params RelSetParams) WorldWithRel {
 	w.resetLatestTrackers()
 	fromItem, ok := w.ItemFetch(fromId)
 	if !ok {
@@ -227,13 +229,13 @@ func (w world) RelCreate(fromId, toId string, params RelSetParams) WorldWithRel 
 	return w
 }
 
-func (w world) RelDelete(fromId, toId string) World {
+func (w *world) RelDelete(fromId, toId string) World {
 	w.resetLatestTrackers()
 	delete(w.Rels, relIdFromIds(fromId, toId))
 	return w
 }
 
-func (w world) RelFetch(fromId, toId string, strict bool) []Rel {
+func (w *world) RelFetch(fromId, toId string, strict bool) []Rel {
 	w.resetLatestTrackers()
 	if strict {
 		return []Rel{w.Rels[relIdFromIds(fromId, toId)]}
@@ -249,7 +251,7 @@ func (w world) RelFetch(fromId, toId string, strict bool) []Rel {
 	return rels
 }
 
-func (w world) RelSet(fromId, toId string, params RelSetParams) WorldWithRel {
+func (w *world) RelSet(fromId, toId string, params RelSetParams) WorldWithRel {
 	w.resetLatestTrackers()
 	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
 	if !ok {
@@ -276,7 +278,7 @@ func (w world) RelSet(fromId, toId string, params RelSetParams) WorldWithRel {
 	return w
 }
 
-func (w world) In(childId, parentId string, strict bool) bool {
+func (w *world) In(childId, parentId string, strict bool) bool {
 	w.resetLatestTrackers()
 	tree, ok := w.Tree.Find(parentId)
 	if !ok {
@@ -285,7 +287,30 @@ func (w world) In(childId, parentId string, strict bool) bool {
 	return tree.Has(childId, strict)
 }
 
-func (w world) Nest(childId, parentId string) WorldWithItem {
+func (w *world) Parent(childId string) (string, bool) {
+	w.resetLatestTrackers()
+	tree, ok := w.Tree.Find(childId)
+	if !ok {
+		return "", false
+	}
+	return tree.Parent().Item().Id, true
+}
+
+func (w *world) Components(parentId string) ([]string, bool) {
+	w.resetLatestTrackers()
+	tree, ok := w.Tree.Find(parentId)
+	if !ok {
+		return []string{}, false
+	}
+	components := tree.Components().ToSlice()
+	ids := make([]string, len(components))
+	for i, c := range components {
+		ids[i] = c.Item().Id
+	}
+	return ids, true
+}
+
+func (w *world) Nest(childId, parentId string) WorldWithItem {
 	w.resetLatestTrackers()
 	item, ok := w.ItemFetch(childId)
 	if !ok {
@@ -318,7 +343,7 @@ func (w world) Nest(childId, parentId string) WorldWithItem {
 	return w
 }
 
-func (w world) Free(childId, parentId string) WorldWithItem {
+func (w *world) Free(childId, parentId string) WorldWithItem {
 	w.resetLatestTrackers()
 	item, ok := w.ItemFetch(childId)
 	if !ok {
@@ -349,15 +374,15 @@ func (w world) Free(childId, parentId string) WorldWithItem {
 	return w
 }
 
-func (w world) Err() error {
+func (w *world) Err() error {
 	return w.latestErr
 }
 
-func (w world) Item() (Item, error) {
+func (w *world) Item() (Item, error) {
 	return *w.latestItem, w.latestErr
 }
 
-func (w world) Rel() (Rel, error) {
+func (w *world) Rel() (Rel, error) {
 	return *w.latestRel, w.latestErr
 }
 
@@ -405,7 +430,7 @@ func equalRelParams(existing Rel, params RelSetParams) error {
 // resetLatestTrackers resets the latestItem, latestRel, and latestErr fields.
 // We do this before every operation to ensure that we don't accidentally return stale values
 // from our Item() and Rel() methods.
-func (w world) resetLatestTrackers() {
+func (w *world) resetLatestTrackers() {
 	w.latestItem = &Item{}
 	w.latestRel = &Rel{}
 	w.latestErr = nil
