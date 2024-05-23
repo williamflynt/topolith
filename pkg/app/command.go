@@ -1,4 +1,4 @@
-package commands
+package app
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ const (
 	Free   CommandVerb = "free"
 )
 
-// Command is the interface that all commands must implement.
+// Command is the interface that all app must implement.
 type Command interface {
 	Execute(w topolith.World) error
 	Undo(w topolith.World) error
@@ -286,6 +286,97 @@ func (c *RelDeleteCommand) Undo(w topolith.World) error {
 
 func (c *RelDeleteCommand) String() string {
 	return fmt.Sprintf(`%s %s "%s" "%s"`, c.ResourceType, Delete, c.Id, c.ToId)
+}
+
+// --- EXPORTED FUNCTIONS ---
+
+// ParseCommand parses a string into a Command.
+func ParseCommand(s string) (Command, error) {
+	return parseCommand(s)
+}
+
+func MakeItemCreateCommand(id string, params topolith.ItemSetParams) (Command, error) {
+	return &ItemCreateCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+		Params: params,
+	}, nil
+}
+
+func MakeItemSetCommand(id string, params topolith.ItemSetParams) (Command, error) {
+	return &ItemSetCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+		Params:    params,
+		oldParams: topolith.ItemSetParams{},
+	}, nil
+}
+
+func MakeItemDeleteCommand(id string) (Command, error) {
+	return &ItemDeleteCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+		oldParams: topolith.ItemSetParams{},
+	}, nil
+}
+
+func MakeItemFreeCommand(id string) (Command, error) {
+	return &ItemFreeCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+	}, nil
+}
+
+func MakeNestCommand(id string, parentId string) (Command, error) {
+	return &ItemNestCommand{
+		CommandBase: CommandBase{
+			ResourceType: ItemTarget,
+			Id:           id,
+		},
+		ParentId: parentId,
+	}, nil
+}
+
+func MakeRelCreateCommand(fromId string, toId string, params topolith.RelSetParams) (Command, error) {
+	return &RelCreateCommand{
+		CommandBase: CommandBase{
+			ResourceType: RelTarget,
+			Id:           fromId,
+		},
+		ToId:   toId,
+		Params: params,
+	}, nil
+}
+
+func MakeRelSetCommand(fromId string, toId string, params topolith.RelSetParams) (Command, error) {
+	return &RelSetCommand{
+		CommandBase: CommandBase{
+			ResourceType: RelTarget,
+			Id:           fromId,
+		},
+		ToId:      toId,
+		Params:    params,
+		oldParams: topolith.RelSetParams{},
+	}, nil
+}
+
+func MakeRelDeleteCommand(fromId string, toId string) (Command, error) {
+	return &RelDeleteCommand{
+		CommandBase: CommandBase{
+			ResourceType: RelTarget,
+			Id:           fromId,
+		},
+		ToId:      toId,
+		oldParams: topolith.RelSetParams{},
+	}, nil
 }
 
 // --- INTERNAL FUNCTIONS ---
