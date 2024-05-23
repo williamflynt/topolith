@@ -3,6 +3,7 @@ package topolith
 import (
 	"github.com/williamflynt/topolith/pkg/errors"
 	"slices"
+	"strconv"
 )
 
 const currentVersion = 1
@@ -17,22 +18,15 @@ type WorldInfo interface {
 
 // WorldOperations is an interface that represents operations over the state of the World.
 type WorldOperations interface {
-	ItemCreate(id string) WorldWithItem                     // ItemCreate creates a new Item in the World, or retrieves it if already exists.
-	ItemDelete(id string) World                             // ItemDelete deletes an Item from the World. If the item doesn't exist, noop.
-	ItemFetch(id string) (Item, bool)                       // ItemFetch fetches an Item from the World. Returns an "okay" boolean, which is true only if the Item exists.
-	ItemSetExternal(id string, external bool) WorldWithItem // ItemSetExternal sets Item.External. Returns the empty Item if the Item doesn't exist.
-	ItemSetType(id string, itemType string) WorldWithItem   // ItemSetType sets Item.Type. Returns the empty Item if the Item doesn't exist.
-	ItemSetName(id, name string) WorldWithItem              // ItemSetName sets Item.Name. Returns the empty Item if the Item doesn't exist.
-	ItemSetMechanism(id, mechanism string) WorldWithItem    // ItemSetMechanism sets Item.Mechanism. Returns the empty Item if the Item doesn't exist.
-	ItemSetExpanded(id, expanded string) WorldWithItem      // ItemSetExpanded sets Item.Expanded. Returns the empty Item if the Item doesn't exist.
+	ItemCreate(id string, params ItemSetParams) WorldWithItem // ItemCreate creates a new Item in the World, or retrieves it if already exists.
+	ItemDelete(id string) World                               // ItemDelete deletes an Item from the World. If the item doesn't exist, noop.
+	ItemFetch(id string) (Item, bool)                         // ItemFetch fetches an Item from the World. Returns an "okay" boolean, which is true only if the Item exists.
+	ItemSet(id string, params ItemSetParams) WorldWithItem    // ItemSet sets the not-nil attributes from ItemSetParams on Item that has the given ID.
 
-	RelCreate(fromId, toId string) WorldWithRel                  // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
-	RelDelete(fromId, toId string) World                         // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
-	RelFetch(fromId, toId string, strict bool) []Rel             // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
-	RelSetVerb(fromId, toId, verb string) WorldWithRel           // RelSetVerb sets Rel.Verb. Returns the empty Rel if the Rel doesn't exist.
-	RelSetMechanism(fromId, toId, mechanism string) WorldWithRel // RelSetMechanism sets Rel.Mechanism. Returns the empty Rel if the Rel doesn't exist.
-	RelSetAsync(fromId, toId string, async bool) WorldWithRel    // RelSetAsync sets Rel.Async. Returns the empty Rel if the Rel doesn't exist.
-	RelSetExpanded(fromId, toId, expanded string) WorldWithRel   // RelSetExpanded sets Rel.Expanded. Returns the empty Rel if the Rel doesn't exist.
+	RelCreate(fromId, toId string, params RelSetParams) WorldWithRel // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
+	RelDelete(fromId, toId string) World                             // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
+	RelFetch(fromId, toId string, strict bool) []Rel                 // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
+	RelSet(fromId, toId string, params RelSetParams) WorldWithRel    // RelSet sets the not-nil attributes from RelSetParams on Rel that has the given fromId and toId.
 
 	In(childId, parentId string, strict bool) bool // In checks if a child Item is nested anywhere under a parent Item. If strict is true, it will only return true if the childId and parentId match exactly.
 	Nest(childId, parentId string) WorldWithItem   // Nest nests a child Item under a parent Item. If the parent doesn't exist, noop.
@@ -113,7 +107,7 @@ func (w world) Expanded() string {
 	return w.Expanded_
 }
 
-func (w world) ItemCreate(id string) WorldWithItem {
+func (w world) ItemCreate(id string, params ItemSetParams) WorldWithItem {
 	w.resetLatestTrackers()
 	if id == "" {
 		w.latestErr = errors.New("id cannot be empty")
@@ -127,6 +121,7 @@ func (w world) ItemCreate(id string) WorldWithItem {
 		Id: id,
 	}
 	w.Items[id] = item
+	w.ItemSet(id, params) // After we set in the tracking map on World.
 	w.latestItem = &item
 	if err := w.Tree.AddOrMove(&item); err != nil {
 		// This shouldn't happen if we're properly syncing the Items map with Tree...
@@ -156,9 +151,9 @@ func (w world) ItemFetch(id string) (Item, bool) {
 	return item, ok
 }
 
-func (w world) ItemSetExternal(id string, external bool) WorldWithItem {
+func (w world) ItemSet(id string, params ItemSetParams) WorldWithItem {
 	w.resetLatestTrackers()
-	item, ok := w.ItemFetch(id)
+	item, ok := w.Items[id]
 	if !ok {
 		w.latestErr = errors.
 			New("item not found").
@@ -166,78 +161,31 @@ func (w world) ItemSetExternal(id string, external bool) WorldWithItem {
 			WithData(errors.KvPair{Key: "id", Value: id})
 		return w
 	}
-	item.External = external
-	w.Items[id] = item
-	w.latestItem = &item
-	return w
-}
-
-func (w world) ItemSetType(id string, itemType string) WorldWithItem {
-	w.resetLatestTrackers()
-	item, ok := w.ItemFetch(id)
-	if !ok {
-		w.latestErr = errors.
-			New("item not found").
-			UseCode(errors.TopolithErrorNotFound).
-			WithData(errors.KvPair{Key: "id", Value: id})
-		return w
+	if params.Name != nil {
+		item.Name = *params.Name
 	}
-	w.latestItem = &item
-	item.Type = itemTypeFromString(itemType)
-	w.Items[id] = item
-	w.latestItem = &item
-	return w
-}
-
-func (w world) ItemSetName(id, name string) WorldWithItem {
-	w.resetLatestTrackers()
-	item, ok := w.ItemFetch(id)
-	if !ok {
-		w.latestErr = errors.
-			New("item not found").
-			UseCode(errors.TopolithErrorNotFound).
-			WithData(errors.KvPair{Key: "id", Value: id})
-		return w
+	if params.Expanded != nil {
+		item.Expanded = *params.Expanded
 	}
-	item.Name = name
-	w.Items[id] = item
-	w.latestItem = &item
-	return w
-}
-
-func (w world) ItemSetMechanism(id, mechanism string) WorldWithItem {
-	w.resetLatestTrackers()
-	item, ok := w.ItemFetch(id)
-	if !ok {
-		w.latestErr = errors.
-			New("item not found").
-			UseCode(errors.TopolithErrorNotFound).
-			WithData(errors.KvPair{Key: "id", Value: id})
-		return w
+	if params.External != nil {
+		item.External = *params.External
 	}
-	item.Mechanism = mechanism
-	w.Items[id] = item
-	w.latestItem = &item
-	return w
-}
-
-func (w world) ItemSetExpanded(id, expanded string) WorldWithItem {
-	w.resetLatestTrackers()
-	item, ok := w.ItemFetch(id)
-	if !ok {
-		w.latestErr = errors.
-			New("item not found").
-			UseCode(errors.TopolithErrorNotFound).
-			WithData(errors.KvPair{Key: "id", Value: id})
-		return w
+	if params.Type != nil {
+		if iotaType, err := strconv.Atoi(*params.Type); err == nil {
+			item.Type = ItemType(iotaType)
+		} else {
+			w.latestErr = err
+		}
 	}
-	item.Expanded = expanded
+	if params.Mechanism != nil {
+		item.Mechanism = *params.Mechanism
+	}
 	w.Items[id] = item
 	w.latestItem = &item
 	return w
 }
 
-func (w world) RelCreate(fromId, toId string) WorldWithRel {
+func (w world) RelCreate(fromId, toId string, params RelSetParams) WorldWithRel {
 	w.resetLatestTrackers()
 	fromItem, ok := w.ItemFetch(fromId)
 	if !ok {
@@ -260,6 +208,7 @@ func (w world) RelCreate(fromId, toId string) WorldWithRel {
 		To:   toItem,
 	}
 	w.Rels[rel.id()] = rel
+	w.RelSet(fromId, toId, params) // After we set in the tracking map on World.
 	w.latestRel = &rel
 	return w
 }
@@ -286,7 +235,7 @@ func (w world) RelFetch(fromId, toId string, strict bool) []Rel {
 	return rels
 }
 
-func (w world) RelSetVerb(fromId, toId, verb string) WorldWithRel {
+func (w world) RelSet(fromId, toId string, params RelSetParams) WorldWithRel {
 	w.resetLatestTrackers()
 	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
 	if !ok {
@@ -296,55 +245,18 @@ func (w world) RelSetVerb(fromId, toId, verb string) WorldWithRel {
 			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
 		return w
 	}
-	rel.Verb = verb
-	w.Rels[rel.id()] = rel
-	w.latestRel = &rel
-	return w
-}
-
-func (w world) RelSetMechanism(fromId, toId, mechanism string) WorldWithRel {
-	w.resetLatestTrackers()
-	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
-	if !ok {
-		w.latestErr = errors.
-			New("rel not found").
-			UseCode(errors.TopolithErrorNotFound).
-			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
-		return w
+	if params.Verb != nil {
+		rel.Verb = *params.Verb
 	}
-	rel.Mechanism = mechanism
-	w.Rels[rel.id()] = rel
-	w.latestRel = &rel
-	return w
-}
-
-func (w world) RelSetAsync(fromId, toId string, async bool) WorldWithRel {
-	w.resetLatestTrackers()
-	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
-	if !ok {
-		w.latestErr = errors.
-			New("rel not found").
-			UseCode(errors.TopolithErrorNotFound).
-			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
-		return w
+	if params.Mechanism != nil {
+		rel.Mechanism = *params.Mechanism
 	}
-	rel.Async = async
-	w.Rels[rel.id()] = rel
-	w.latestRel = &rel
-	return w
-}
-
-func (w world) RelSetExpanded(fromId, toId, expanded string) WorldWithRel {
-	w.resetLatestTrackers()
-	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
-	if !ok {
-		w.latestErr = errors.
-			New("rel not found").
-			UseCode(errors.TopolithErrorNotFound).
-			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
-		return w
+	if params.Async != nil {
+		rel.Async = *params.Async
 	}
-	rel.Expanded = expanded
+	if params.Expanded != nil {
+		rel.Expanded = *params.Expanded
+	}
 	w.Rels[rel.id()] = rel
 	w.latestRel = &rel
 	return w

@@ -20,3 +20,11 @@ func (r Rel) id() string {
 func relIdFromIds(fromId, toId string) string {
 	return fromId + RelIdSeparator + toId
 }
+
+// RelSetParams is a struct that represents the parameters that can be set on a Rel.
+type RelSetParams struct {
+	Verb      *string
+	Mechanism *string
+	Async     *bool
+	Expanded  *string
+}

@@ -55,3 +55,12 @@ type Item struct {
 func (i Item) id() string {
 	return i.Id
 }
+
+// ItemSetParams is a struct that represents the parameters that can be set on an Item.
+type ItemSetParams struct {
+	Name      *string
+	Expanded  *string
+	External  *bool
+	Type      *string
+	Mechanism *string
+}

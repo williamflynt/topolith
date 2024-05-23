@@ -39,23 +39,6 @@ type CommandBase struct {
 	ID           string
 }
 
-// Item specific parameter struct
-type ItemSetParams struct {
-	Name      *string
-	Expanded  *string
-	External  *bool
-	Type      *string
-	Mechanism *string
-}
-
-// Rel specific parameter struct
-type RelSetParams struct {
-	Verb      *string
-	Mechanism *string
-	Async     *bool
-	Expanded  *string
-}
-
 // CreateCommand represents a create command.
 type CreateCommand struct {
 	CommandBase
@@ -86,7 +69,7 @@ func (c *CreateCommand) FromString(s string) (Command, error) {
 // SetItemCommand represents a set command for Item.
 type SetItemCommand struct {
 	CommandBase
-	Params ItemSetParams
+	Params topolith.ItemSetParams
 }
 
 func (c *SetItemCommand) Execute(w topolith.World) error {
@@ -114,7 +97,7 @@ func (c *SetItemCommand) FromString(s string) (Command, error) {
 // SetRelCommand represents a set command for Rel.
 type SetRelCommand struct {
 	CommandBase
-	Params RelSetParams
+	Params topolith.RelSetParams
 }
 
 func (c *SetRelCommand) Execute(w topolith.World) error {
@@ -149,13 +132,13 @@ func CommandFactory(resourceType CommandTarget, id string, verb ActionVerb, para
 	case Set:
 		switch resourceType {
 		case ItemTarget:
-			p, ok := params.(ItemSetParams)
+			p, ok := params.(topolith.ItemSetParams)
 			if !ok {
 				return nil, errors.New("invalid parameters for set item command")
 			}
 			return &SetItemCommand{CommandBase: CommandBase{ResourceType: ItemTarget, ID: id}, Params: p}, nil
 		case RelTarget:
-			p, ok := params.(RelSetParams)
+			p, ok := params.(topolith.RelSetParams)
 			if !ok {
 				return nil, errors.New("invalid parameters for set rel command")
 			}
@@ -185,7 +168,7 @@ func main() {
 	createCmd.Execute(w)
 	createCmd.Undo(w)
 
-	itemParams := ItemSetParams{
+	itemParams := topolith.ItemSetParams{
 		Name:      stringPtr("myname"),
 		Expanded:  stringPtr("this is an item"),
 		External:  boolPtr(true),
@@ -213,7 +196,7 @@ func boolPtr(b bool) *bool {
 // Dummy functions to simulate state retrieval and restoration.
 func getItemState(id string) interface{} {
 	// Return dummy previous state
-	return ItemSetParams{Name: stringPtr("oldName")}
+	return topolith.ItemSetParams{Name: stringPtr("oldName")}
 }
 
 func restoreItemState(id string, state interface{}) {
@@ -223,7 +206,7 @@ func restoreItemState(id string, state interface{}) {
 
 func getRelState(id string) interface{} {
 	// Return dummy previous state
-	return RelSetParams{Verb: stringPtr("oldVerb")}
+	return topolith.RelSetParams{Verb: stringPtr("oldVerb")}
 }
 
 func restoreRelState(id string, state interface{}) {
