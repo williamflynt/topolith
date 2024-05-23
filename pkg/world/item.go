@@ -1,4 +1,4 @@
-package topolith
+package world
 
 // ItemType is an iota that represents the type of Item.
 type ItemType int

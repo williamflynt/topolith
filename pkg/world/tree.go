@@ -1,4 +1,4 @@
-package topolith
+package world
 
 import (
 	mapset "github.com/deckarep/golang-set/v2"

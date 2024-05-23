@@ -1,4 +1,4 @@
-package topolith
+package world
 
 const RelIdSeparator = "::"
 

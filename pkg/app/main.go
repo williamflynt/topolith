@@ -2,26 +2,26 @@ package app
 
 import (
 	"github.com/williamflynt/topolith/pkg/errors"
-	"github.com/williamflynt/topolith/pkg/topolith"
+	"github.com/williamflynt/topolith/pkg/world"
 )
 
 type App interface {
-	World() topolith.World // World returns the topolith.World associated with this App.
-	History() []Command    // Commands returns the list of Command that have been executed for the present state of the topolith.World.
-	Undo() (error, int)    // Undo reverses the last operation on the World. If there are no operations to undo, noop. Return any error that occurred and the number of operations left to undo.
-	Redo() (error, int)    // Redo executes the most recently reversed operation on the World. If there are no operations to redo, noop. Return any error that occurred and the number of operations left to redo.
-	CanUndo() bool         // CanUndo indicates whether more Command objects exist to Undo.
-	CanRedo() bool         // CanRedo indicates whether more Command objects exist to Redo.
+	World() world.World // World returns the world.World associated with this App.
+	History() []Command // Commands returns the list of Command that have been executed for the present state of the world.World.
+	Undo() (error, int) // Undo reverses the last operation on the World. If there are no operations to undo, noop. Return any error that occurred and the number of operations left to undo.
+	Redo() (error, int) // Redo executes the most recently reversed operation on the World. If there are no operations to redo, noop. Return any error that occurred and the number of operations left to redo.
+	CanUndo() bool      // CanUndo indicates whether more Command objects exist to Undo.
+	CanRedo() bool      // CanRedo indicates whether more Command objects exist to Redo.
 }
 
 // app implements App.
 type app struct {
-	world       topolith.World // world is the topolith.World associated with this App.
-	commands    []Command      // commands is a list of Command that have been executed.
-	commandsIdx int            // commandsIdx is the index of the last executed Command in the commands list. It must initialize to -1.
+	world       world.World // world is the world.World associated with this App.
+	commands    []Command   // commands is a list of Command that have been executed.
+	commandsIdx int         // commandsIdx is the index of the last executed Command in the commands list. It must initialize to -1.
 }
 
-func NewHistory(world topolith.World) (App, error) {
+func NewHistory(world world.World) (App, error) {
 	if world == nil {
 		return nil, errors.New("cannot create App with nil World").UseCode(errors.TopolithErrorInvalid)
 	}
@@ -32,7 +32,7 @@ func NewHistory(world topolith.World) (App, error) {
 	}, nil
 }
 
-func (h *app) World() topolith.World {
+func (h *app) World() world.World {
 	return h.world
 }
 

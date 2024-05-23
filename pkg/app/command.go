@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 	"github.com/williamflynt/topolith/pkg/errors"
-	"github.com/williamflynt/topolith/pkg/topolith"
+	"github.com/williamflynt/topolith/pkg/world"
 	"regexp"
 	"strings"
 	"unicode"
@@ -24,8 +24,8 @@ const (
 
 // Command is the interface that all app must implement.
 type Command interface {
-	Execute(w topolith.World) error
-	Undo(w topolith.World) error
+	Execute(w world.World) error
+	Undo(w world.World) error
 	String() string
 }
 
@@ -48,11 +48,11 @@ type CommandBase struct {
 // ItemCreateCommand represents a create command.
 type ItemCreateCommand struct {
 	CommandBase
-	Params   topolith.ItemSetParams
+	Params   world.ItemSetParams
 	noCreate bool
 }
 
-func (c *ItemCreateCommand) Execute(w topolith.World) error {
+func (c *ItemCreateCommand) Execute(w world.World) error {
 	if _, ok := w.ItemFetch(c.Id); ok {
 		c.noCreate = true
 		return nil
@@ -60,7 +60,7 @@ func (c *ItemCreateCommand) Execute(w topolith.World) error {
 	return w.ItemCreate(c.Id, c.Params).Err()
 }
 
-func (c *ItemCreateCommand) Undo(w topolith.World) error {
+func (c *ItemCreateCommand) Undo(w world.World) error {
 	if c.noCreate {
 		return nil
 	}
@@ -74,12 +74,12 @@ func (c *ItemCreateCommand) String() string {
 // ItemSetCommand represents a set command for Item.
 type ItemSetCommand struct {
 	CommandBase
-	Params    topolith.ItemSetParams
-	oldParams topolith.ItemSetParams
+	Params    world.ItemSetParams
+	oldParams world.ItemSetParams
 	noSet     bool
 }
 
-func (c *ItemSetCommand) Execute(w topolith.World) error {
+func (c *ItemSetCommand) Execute(w world.World) error {
 	item, ok := w.ItemFetch(c.Id)
 	if !ok {
 		c.noSet = true
@@ -87,13 +87,13 @@ func (c *ItemSetCommand) Execute(w topolith.World) error {
 	}
 	c.oldParams.External = boolPtr(item.External)
 	c.oldParams.Name = strPtr(item.Name)
-	c.oldParams.Type = strPtr(topolith.StringFromItemType(item.Type))
+	c.oldParams.Type = strPtr(world.StringFromItemType(item.Type))
 	c.oldParams.Mechanism = strPtr(item.Mechanism)
 	c.oldParams.Expanded = strPtr(item.Expanded)
 	return w.ItemSet(c.Id, c.Params).Err()
 }
 
-func (c *ItemSetCommand) Undo(w topolith.World) error {
+func (c *ItemSetCommand) Undo(w world.World) error {
 	if c.noSet {
 		return nil
 	}
@@ -107,11 +107,11 @@ func (c *ItemSetCommand) String() string {
 // ItemDeleteCommand represents a delete command for Item.
 type ItemDeleteCommand struct {
 	CommandBase
-	oldParams topolith.ItemSetParams
+	oldParams world.ItemSetParams
 	noDelete  bool
 }
 
-func (c *ItemDeleteCommand) Execute(w topolith.World) error {
+func (c *ItemDeleteCommand) Execute(w world.World) error {
 	item, ok := w.ItemFetch(c.Id)
 	if !ok {
 		c.noDelete = true
@@ -119,13 +119,13 @@ func (c *ItemDeleteCommand) Execute(w topolith.World) error {
 	}
 	c.oldParams.External = boolPtr(item.External)
 	c.oldParams.Name = strPtr(item.Name)
-	c.oldParams.Type = strPtr(topolith.StringFromItemType(item.Type))
+	c.oldParams.Type = strPtr(world.StringFromItemType(item.Type))
 	c.oldParams.Mechanism = strPtr(item.Mechanism)
 	c.oldParams.Expanded = strPtr(item.Expanded)
 	return w.ItemDelete(c.Id).Err()
 }
 
-func (c *ItemDeleteCommand) Undo(w topolith.World) error {
+func (c *ItemDeleteCommand) Undo(w world.World) error {
 	if c.noDelete {
 		return nil
 	}
@@ -144,7 +144,7 @@ type ItemNestCommand struct {
 	noNest      bool
 }
 
-func (c *ItemNestCommand) Execute(w topolith.World) error {
+func (c *ItemNestCommand) Execute(w world.World) error {
 	oldParentId, found := w.Parent(c.Id)
 	if !found {
 		c.noNest = true
@@ -154,7 +154,7 @@ func (c *ItemNestCommand) Execute(w topolith.World) error {
 	return w.Nest(c.Id, c.ParentId).Err()
 }
 
-func (c *ItemNestCommand) Undo(w topolith.World) error {
+func (c *ItemNestCommand) Undo(w world.World) error {
 	if c.noNest {
 		return nil
 	}
@@ -174,7 +174,7 @@ type ItemFreeCommand struct {
 	oldParentId string
 }
 
-func (c *ItemFreeCommand) Execute(w topolith.World) error {
+func (c *ItemFreeCommand) Execute(w world.World) error {
 	oldParentId, found := w.Parent(c.Id)
 	if !found {
 		return errors.New("could not find Item").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
@@ -183,7 +183,7 @@ func (c *ItemFreeCommand) Execute(w topolith.World) error {
 	return w.Free(c.Id).Err()
 }
 
-func (c *ItemFreeCommand) Undo(w topolith.World) error {
+func (c *ItemFreeCommand) Undo(w world.World) error {
 	if c.oldParentId == "" {
 		return nil
 	}
@@ -198,11 +198,11 @@ func (c *ItemFreeCommand) String() string {
 type RelCreateCommand struct {
 	CommandBase
 	ToId     string
-	Params   topolith.RelSetParams
+	Params   world.RelSetParams
 	noCreate bool
 }
 
-func (c *RelCreateCommand) Execute(w topolith.World) error {
+func (c *RelCreateCommand) Execute(w world.World) error {
 	if rels := w.RelFetch(c.Id, c.ToId, true); len(rels) > 0 {
 		c.noCreate = true
 		return nil
@@ -210,7 +210,7 @@ func (c *RelCreateCommand) Execute(w topolith.World) error {
 	return w.RelCreate(c.Id, c.ToId, c.Params).Err()
 }
 
-func (c *RelCreateCommand) Undo(w topolith.World) error {
+func (c *RelCreateCommand) Undo(w world.World) error {
 	if c.noCreate {
 		return nil
 	}
@@ -225,12 +225,12 @@ func (c *RelCreateCommand) String() string {
 type RelSetCommand struct {
 	CommandBase
 	ToId      string
-	Params    topolith.RelSetParams
-	oldParams topolith.RelSetParams
+	Params    world.RelSetParams
+	oldParams world.RelSetParams
 	noSet     bool
 }
 
-func (c *RelSetCommand) Execute(w topolith.World) error {
+func (c *RelSetCommand) Execute(w world.World) error {
 	rels := w.RelFetch(c.Id, c.ToId, true)
 	if len(rels) == 0 {
 		c.noSet = true
@@ -244,7 +244,7 @@ func (c *RelSetCommand) Execute(w topolith.World) error {
 	return w.RelSet(c.Id, c.ToId, c.Params).Err()
 }
 
-func (c *RelSetCommand) Undo(w topolith.World) error {
+func (c *RelSetCommand) Undo(w world.World) error {
 	if c.noSet {
 		return nil
 	}
@@ -259,11 +259,11 @@ func (c *RelSetCommand) String() string {
 type RelDeleteCommand struct {
 	CommandBase
 	ToId      string
-	oldParams topolith.RelSetParams
+	oldParams world.RelSetParams
 	noDelete  bool
 }
 
-func (c *RelDeleteCommand) Execute(w topolith.World) error {
+func (c *RelDeleteCommand) Execute(w world.World) error {
 	rels := w.RelFetch(c.Id, c.Id, true)
 	if len(rels) == 0 {
 		c.noDelete = true
@@ -277,7 +277,7 @@ func (c *RelDeleteCommand) Execute(w topolith.World) error {
 	return w.RelDelete(c.Id, c.ToId).Err()
 }
 
-func (c *RelDeleteCommand) Undo(w topolith.World) error {
+func (c *RelDeleteCommand) Undo(w world.World) error {
 	if c.noDelete {
 		return nil
 	}
@@ -295,7 +295,7 @@ func ParseCommand(s string) (Command, error) {
 	return parseCommand(s)
 }
 
-func MakeItemCreateCommand(id string, params topolith.ItemSetParams) (Command, error) {
+func MakeItemCreateCommand(id string, params world.ItemSetParams) (Command, error) {
 	return &ItemCreateCommand{
 		CommandBase: CommandBase{
 			ResourceType: ItemTarget,
@@ -305,14 +305,14 @@ func MakeItemCreateCommand(id string, params topolith.ItemSetParams) (Command, e
 	}, nil
 }
 
-func MakeItemSetCommand(id string, params topolith.ItemSetParams) (Command, error) {
+func MakeItemSetCommand(id string, params world.ItemSetParams) (Command, error) {
 	return &ItemSetCommand{
 		CommandBase: CommandBase{
 			ResourceType: ItemTarget,
 			Id:           id,
 		},
 		Params:    params,
-		oldParams: topolith.ItemSetParams{},
+		oldParams: world.ItemSetParams{},
 	}, nil
 }
 
@@ -322,7 +322,7 @@ func MakeItemDeleteCommand(id string) (Command, error) {
 			ResourceType: ItemTarget,
 			Id:           id,
 		},
-		oldParams: topolith.ItemSetParams{},
+		oldParams: world.ItemSetParams{},
 	}, nil
 }
 
@@ -345,7 +345,7 @@ func MakeNestCommand(id string, parentId string) (Command, error) {
 	}, nil
 }
 
-func MakeRelCreateCommand(fromId string, toId string, params topolith.RelSetParams) (Command, error) {
+func MakeRelCreateCommand(fromId string, toId string, params world.RelSetParams) (Command, error) {
 	return &RelCreateCommand{
 		CommandBase: CommandBase{
 			ResourceType: RelTarget,
@@ -356,7 +356,7 @@ func MakeRelCreateCommand(fromId string, toId string, params topolith.RelSetPara
 	}, nil
 }
 
-func MakeRelSetCommand(fromId string, toId string, params topolith.RelSetParams) (Command, error) {
+func MakeRelSetCommand(fromId string, toId string, params world.RelSetParams) (Command, error) {
 	return &RelSetCommand{
 		CommandBase: CommandBase{
 			ResourceType: RelTarget,
@@ -364,7 +364,7 @@ func MakeRelSetCommand(fromId string, toId string, params topolith.RelSetParams)
 		},
 		ToId:      toId,
 		Params:    params,
-		oldParams: topolith.RelSetParams{},
+		oldParams: world.RelSetParams{},
 	}, nil
 }
 
@@ -375,7 +375,7 @@ func MakeRelDeleteCommand(fromId string, toId string) (Command, error) {
 			Id:           fromId,
 		},
 		ToId:      toId,
-		oldParams: topolith.RelSetParams{},
+		oldParams: world.RelSetParams{},
 	}, nil
 }
 
@@ -473,7 +473,7 @@ func parseCommand(s string) (Command, error) {
 	return nil, errors.New("unknown command").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "command", Value: s})
 }
 
-func itemParamsToString(params topolith.ItemSetParams) string {
+func itemParamsToString(params world.ItemSetParams) string {
 	components := make([]string, 0)
 	if params.External != nil {
 		components = append(components, fmt.Sprintf(`external=%t`, *params.External))
@@ -493,9 +493,9 @@ func itemParamsToString(params topolith.ItemSetParams) string {
 	return strings.Join(components, " ")
 }
 
-func itemParamsFromString(s string) (topolith.ItemSetParams, error) {
+func itemParamsFromString(s string) (world.ItemSetParams, error) {
 	elements := kvPattern.FindAllStringSubmatch(s, -1)
-	params := topolith.ItemSetParams{}
+	params := world.ItemSetParams{}
 	for _, element := range elements {
 		key := element[1]
 		value := strings.Trim(element[2], `'"`)
@@ -526,7 +526,7 @@ func itemParamsFromString(s string) (topolith.ItemSetParams, error) {
 	return params, nil
 }
 
-func relParamsToString(params topolith.RelSetParams) string {
+func relParamsToString(params world.RelSetParams) string {
 	components := make([]string, 0)
 	if params.Verb != nil {
 		components = append(components, fmt.Sprintf(`verb="%s"`, *params.Verb))
@@ -543,9 +543,9 @@ func relParamsToString(params topolith.RelSetParams) string {
 	return strings.Join(components, " ")
 }
 
-func relParamsFromString(s string) (topolith.RelSetParams, error) {
+func relParamsFromString(s string) (world.RelSetParams, error) {
 	elements := kvPattern.FindAllStringSubmatch(s, -1)
-	params := topolith.RelSetParams{}
+	params := world.RelSetParams{}
 	for _, element := range elements {
 		key := element[1]
 		value := strings.Trim(element[2], `'"`)
