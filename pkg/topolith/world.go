@@ -1,7 +1,7 @@
-package core
+package topolith
 
 import (
-	"github.com/williamflynt/topolith/internal/errors"
+	"github.com/williamflynt/topolith/pkg/errors"
 	"slices"
 )
 
@@ -38,9 +38,7 @@ type WorldOperations interface {
 	Nest(childId, parentId string) WorldWithItem   // Nest nests a child Item under a parent Item. If the parent doesn't exist, noop.
 	Free(childId, parentId string) WorldWithItem
 
-	Undo() World // Undo reverses the last operation on the World. If there are no operations to undo, noop and return the same World.
-	Redo() World // Redo executes the most recently reversed operation on the World. If there are no operations to redo, noop and return the same World.
-	Err() error  // Err returns an error if the last operation failed, or nil if it succeeded.
+	Err() error // Err returns an error if the last operation failed, or nil if it succeeded.
 }
 
 // World is an interface that represents the state of the world.
@@ -75,12 +73,10 @@ type world struct {
 	Name_     string `json:"name"`     // Name_ is the display name of the World; meant for humans.
 	Expanded_ string `json:"expanded"` // Expanded_ is the expanded description of the World.
 
-	Items   map[string]Item `json:"items"`   // Items is a map of ID string to related Item.
-	Rels    map[string]Rel  `json:"rels"`    // Rels is a map of `Rel.From.Id` to related Rel.
-	History []Command       `json:"history"` // History is a list of commands that have been executed.
-	Tree    Tree            `json:"tree"`    // Tree is a tree representation of the World.
+	Items map[string]Item `json:"items"` // Items is a map of ID string to related Item.
+	Rels  map[string]Rel  `json:"rels"`  // Rels is a map of `Rel.From.Id` to related Rel.
+	Tree  Tree            `json:"tree"`  // Tree is a tree representation of the World.
 
-	historyIdx int   // historyIdx is the index of the last executed command in the History list.
 	latestItem *Item // latestItem is the last Item that was created or modified. This will be returned by the Item() method.
 	latestRel  *Rel  // latestRel is the last Rel that was created or modified. This will be returned by the Rel() method.
 	latestErr  error // latestErr is any error that occurred during the most recent operation.
@@ -94,8 +90,10 @@ func CreateWorld(name string) World {
 		Expanded_: "",
 		Items:     make(map[string]Item),
 		Rels:      make(map[string]Rel),
-		History:   make([]Command, 0),
 		Tree:      newTree(nil, nil),
+
+		latestItem: &Item{},
+		latestRel:  &Rel{},
 	}
 }
 
@@ -423,16 +421,6 @@ func (w world) Free(childId, parentId string) WorldWithItem {
 	}
 	w.latestErr = w.Tree.AddOrMove(&item)
 	return w
-}
-
-func (w world) Undo() World {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (w world) Redo() World {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (w world) Err() error {

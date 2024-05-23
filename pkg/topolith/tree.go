@@ -1,4 +1,4 @@
-package core
+package topolith
 
 import (
 	mapset "github.com/deckarep/golang-set/v2"
