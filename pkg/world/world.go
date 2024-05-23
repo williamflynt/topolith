@@ -9,16 +9,16 @@ import (
 
 const currentVersion = 1
 
-// WorldInfo is an interface that represents the basic, descriptive information of a World.
-type WorldInfo interface {
+// Info is an interface that represents the basic, descriptive information of a World.
+type Info interface {
 	Version() int     // Version is the version of the World.
 	Id() string       // Id is the unique identifier of the World.
 	Name() string     // Name is the display name of the World; meant for humans.
 	Expanded() string // Expanded is the expanded description of the World.
 }
 
-// WorldOperations is an interface that represents operations over the state of the World.
-type WorldOperations interface {
+// Operations is an interface that represents operations over the state of the World.
+type Operations interface {
 	ItemCreate(id string, params ItemSetParams) WorldWithItem // ItemCreate creates a new Item in the World, or retrieves it if already exists.
 	ItemDelete(id string) World                               // ItemDelete deletes an Item from the World. If the item doesn't exist, noop.
 	ItemFetch(id string) (Item, bool)                         // ItemFetch fetches an Item from the World. Returns an "okay" boolean, which is true only if the Item exists.
@@ -40,8 +40,8 @@ type WorldOperations interface {
 
 // World is an interface that represents the state of the world.
 type World interface {
-	WorldInfo
-	WorldOperations
+	Info
+	Operations
 }
 
 // WorldWithItem is an interface that represents a World with a possible Item from the last operation.

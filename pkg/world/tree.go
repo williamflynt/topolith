@@ -105,7 +105,7 @@ func (t *tree) GetDescendantIds(id string) []string {
 	if !ok {
 		return []string{}
 	}
-	descendantIds := []string{}
+	descendantIds := make([]string, 0)
 	for _, c := range found.Components().ToSlice() {
 		descendantIds = append(descendantIds, c.Item().Id)
 		descendantIds = append(descendantIds, c.GetDescendantIds(c.Item().Id)...)
