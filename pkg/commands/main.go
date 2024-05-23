@@ -181,3 +181,8 @@ func (h *history) MakeCommand(resourceType CommandTarget, id string, verb Comman
 		return nil, errors.New("unknown resource type").UseCode(errors.TopolithErrorInvalid)
 	}
 }
+
+// ParseCommand parses a string into a Command.
+func (h *history) ParseCommand(s string) (Command, error) {
+	return parseCommand(s)
+}

@@ -288,10 +288,10 @@ func (c *RelDeleteCommand) String() string {
 	return fmt.Sprintf(`%s %s "%s" "%s"`, c.ResourceType, Delete, c.Id, c.ToId)
 }
 
-// --- EXPORTED FUNCTIONS ---
+// --- INTERNAL FUNCTIONS ---
 
-// ParseCommand parses a Command from a string.
-func ParseCommand(s string) (Command, error) {
+// parseCommand parses a Command from a string.
+func parseCommand(s string) (Command, error) {
 	firstWord, rest := scanWord(s)
 	switch firstWord {
 	case string(ItemTarget):
@@ -434,8 +434,6 @@ func ParseCommand(s string) (Command, error) {
 	}
 	return nil, errors.New("unknown command").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "command", Value: s})
 }
-
-// --- INTERNAL FUNCTIONS ---
 
 func itemParamsToString(params topolith.ItemSetParams) string {
 	components := make([]string, 0)
