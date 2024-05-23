@@ -16,14 +16,7 @@ type App interface {
 	CanRedo() bool             // CanRedo indicates whether more Command objects exist to Redo.
 }
 
-// app implements App.
-type app struct {
-	world       world.World // world is the world.World associated with this App.
-	commands    []Command   // commands is a list of Command that have been executed.
-	commandsIdx int         // commandsIdx is the index of the last executed Command in the commands list. It must initialize to -1.
-}
-
-func NewHistory(world world.World) (App, error) {
+func NewApp(world world.World) (App, error) {
 	if world == nil {
 		return nil, errors.New("cannot create App with nil World").UseCode(errors.TopolithErrorInvalid)
 	}
@@ -32,6 +25,13 @@ func NewHistory(world world.World) (App, error) {
 		commands:    make([]Command, 0),
 		commandsIdx: -1,
 	}, nil
+}
+
+// app implements App.
+type app struct {
+	world       world.World // world is the world.World associated with this App.
+	commands    []Command   // commands is a list of Command that have been executed.
+	commandsIdx int         // commandsIdx is the index of the last executed Command in the commands list. It must initialize to -1.
 }
 
 func (h *app) World() world.World {
