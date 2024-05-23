@@ -75,7 +75,7 @@ func (c *ItemCreateCommand) String() string {
 type ItemSetCommand struct {
 	CommandBase
 	Params    topolith.ItemSetParams
-	OldParams topolith.ItemSetParams
+	oldParams topolith.ItemSetParams
 	noSet     bool
 }
 
@@ -83,13 +83,13 @@ func (c *ItemSetCommand) Execute(w topolith.World) error {
 	item, ok := w.ItemFetch(c.Id)
 	if !ok {
 		c.noSet = true
-		return errors.New("could not find Item").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{"id", c.Id})
+		return errors.New("could not find Item").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
 	}
-	c.OldParams.External = boolPtr(item.External)
-	c.OldParams.Name = strPtr(item.Name)
-	c.OldParams.Type = strPtr(topolith.StringFromItemType(item.Type))
-	c.OldParams.Mechanism = strPtr(item.Mechanism)
-	c.OldParams.Expanded = strPtr(item.Expanded)
+	c.oldParams.External = boolPtr(item.External)
+	c.oldParams.Name = strPtr(item.Name)
+	c.oldParams.Type = strPtr(topolith.StringFromItemType(item.Type))
+	c.oldParams.Mechanism = strPtr(item.Mechanism)
+	c.oldParams.Expanded = strPtr(item.Expanded)
 	return w.ItemSet(c.Id, c.Params).Err()
 }
 
@@ -97,7 +97,7 @@ func (c *ItemSetCommand) Undo(w topolith.World) error {
 	if c.noSet {
 		return nil
 	}
-	return w.ItemSet(c.Id, c.OldParams).Err()
+	return w.ItemSet(c.Id, c.oldParams).Err()
 }
 
 func (c *ItemSetCommand) String() string {
@@ -107,7 +107,7 @@ func (c *ItemSetCommand) String() string {
 // ItemDeleteCommand represents a delete command for Item.
 type ItemDeleteCommand struct {
 	CommandBase
-	OldParams topolith.ItemSetParams
+	oldParams topolith.ItemSetParams
 	noDelete  bool
 }
 
@@ -117,11 +117,11 @@ func (c *ItemDeleteCommand) Execute(w topolith.World) error {
 		c.noDelete = true
 		return nil
 	}
-	c.OldParams.External = boolPtr(item.External)
-	c.OldParams.Name = strPtr(item.Name)
-	c.OldParams.Type = strPtr(topolith.StringFromItemType(item.Type))
-	c.OldParams.Mechanism = strPtr(item.Mechanism)
-	c.OldParams.Expanded = strPtr(item.Expanded)
+	c.oldParams.External = boolPtr(item.External)
+	c.oldParams.Name = strPtr(item.Name)
+	c.oldParams.Type = strPtr(topolith.StringFromItemType(item.Type))
+	c.oldParams.Mechanism = strPtr(item.Mechanism)
+	c.oldParams.Expanded = strPtr(item.Expanded)
 	return w.ItemDelete(c.Id).Err()
 }
 
@@ -129,7 +129,7 @@ func (c *ItemDeleteCommand) Undo(w topolith.World) error {
 	if c.noDelete {
 		return nil
 	}
-	return w.ItemCreate(c.Id, c.OldParams).Err()
+	return w.ItemCreate(c.Id, c.oldParams).Err()
 }
 
 func (c *ItemDeleteCommand) String() string {
@@ -140,7 +140,7 @@ func (c *ItemDeleteCommand) String() string {
 type ItemNestCommand struct {
 	CommandBase
 	ParentId    string
-	OldParentId string
+	oldParentId string
 	noNest      bool
 }
 
@@ -150,7 +150,7 @@ func (c *ItemNestCommand) Execute(w topolith.World) error {
 		c.noNest = true
 		return errors.New("could not find Item").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
 	}
-	c.OldParentId = oldParentId
+	c.oldParentId = oldParentId
 	return w.Nest(c.Id, c.ParentId).Err()
 }
 
@@ -158,10 +158,10 @@ func (c *ItemNestCommand) Undo(w topolith.World) error {
 	if c.noNest {
 		return nil
 	}
-	if c.OldParentId == "" {
+	if c.oldParentId == "" {
 		return w.Free(c.Id).Err()
 	}
-	return w.Nest(c.Id, c.OldParentId).Err()
+	return w.Nest(c.Id, c.oldParentId).Err()
 }
 
 func (c *ItemNestCommand) String() string {
@@ -171,7 +171,7 @@ func (c *ItemNestCommand) String() string {
 // ItemFreeCommand represents a free command for Item.
 type ItemFreeCommand struct {
 	CommandBase
-	OldParentId string
+	oldParentId string
 }
 
 func (c *ItemFreeCommand) Execute(w topolith.World) error {
@@ -179,15 +179,15 @@ func (c *ItemFreeCommand) Execute(w topolith.World) error {
 	if !found {
 		return errors.New("could not find Item").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
 	}
-	c.OldParentId = oldParentId
+	c.oldParentId = oldParentId
 	return w.Free(c.Id).Err()
 }
 
 func (c *ItemFreeCommand) Undo(w topolith.World) error {
-	if c.OldParentId == "" {
+	if c.oldParentId == "" {
 		return nil
 	}
-	return w.Nest(c.Id, c.OldParentId).Err()
+	return w.Nest(c.Id, c.oldParentId).Err()
 }
 
 func (c *ItemFreeCommand) String() string {
@@ -226,7 +226,7 @@ type RelSetCommand struct {
 	CommandBase
 	ToId      string
 	Params    topolith.RelSetParams
-	OldParams topolith.RelSetParams
+	oldParams topolith.RelSetParams
 	noSet     bool
 }
 
@@ -237,10 +237,10 @@ func (c *RelSetCommand) Execute(w topolith.World) error {
 		return errors.New("could not find Rel").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
 	}
 	rel := rels[0]
-	c.OldParams.Verb = strPtr(rel.Verb)
-	c.OldParams.Mechanism = strPtr(rel.Mechanism)
-	c.OldParams.Async = boolPtr(rel.Async)
-	c.OldParams.Expanded = strPtr(rel.Expanded)
+	c.oldParams.Verb = strPtr(rel.Verb)
+	c.oldParams.Mechanism = strPtr(rel.Mechanism)
+	c.oldParams.Async = boolPtr(rel.Async)
+	c.oldParams.Expanded = strPtr(rel.Expanded)
 	return w.RelSet(c.Id, c.ToId, c.Params).Err()
 }
 
@@ -248,7 +248,7 @@ func (c *RelSetCommand) Undo(w topolith.World) error {
 	if c.noSet {
 		return nil
 	}
-	return w.RelSet(c.Id, c.ToId, c.OldParams).Err()
+	return w.RelSet(c.Id, c.ToId, c.oldParams).Err()
 }
 
 func (c *RelSetCommand) String() string {
@@ -258,7 +258,8 @@ func (c *RelSetCommand) String() string {
 // RelDeleteCommand represents a delete command for Rel.
 type RelDeleteCommand struct {
 	CommandBase
-	OldParams topolith.RelSetParams
+	ToId      string
+	oldParams topolith.RelSetParams
 	noDelete  bool
 }
 
@@ -269,42 +270,169 @@ func (c *RelDeleteCommand) Execute(w topolith.World) error {
 		return nil
 	}
 	rel := rels[0]
-	c.OldParams.Verb = strPtr(rel.Verb)
-	c.OldParams.Mechanism = strPtr(rel.Mechanism)
-	c.OldParams.Async = boolPtr(rel.Async)
-	c.OldParams.Expanded = strPtr(rel.Expanded)
-	return w.RelDelete(c.Id, c.Id).Err()
+	c.oldParams.Verb = strPtr(rel.Verb)
+	c.oldParams.Mechanism = strPtr(rel.Mechanism)
+	c.oldParams.Async = boolPtr(rel.Async)
+	c.oldParams.Expanded = strPtr(rel.Expanded)
+	return w.RelDelete(c.Id, c.ToId).Err()
 }
 
 func (c *RelDeleteCommand) Undo(w topolith.World) error {
 	if c.noDelete {
 		return nil
 	}
-	return w.RelCreate(c.Id, c.Id, c.OldParams).Err()
+	return w.RelCreate(c.Id, c.Id, c.oldParams).Err()
 }
 
 func (c *RelDeleteCommand) String() string {
-	return fmt.Sprintf(`%s %s "%s"`, c.ResourceType, Delete, c.Id)
+	return fmt.Sprintf(`%s %s "%s" "%s"`, c.ResourceType, Delete, c.Id, c.ToId)
 }
 
 // --- EXPORTED FUNCTIONS ---
 
 // ParseCommand parses a Command from a string.
 func ParseCommand(s string) (Command, error) {
-	// TODO: Complete implementation. It turns out I'm making a grammar/protocol...
-	firstWord := scanWord(s)
+	firstWord, rest := scanWord(s)
 	switch firstWord {
 	case string(ItemTarget):
-		return nil, nil
+		secondWord, rest := scanWord(rest)
+		switch secondWord {
+		case string(Create):
+			id, rest := scanWord(rest)
+			params, err := itemParamsFromString(rest)
+			if err != nil {
+				return nil, err
+			}
+			return &ItemCreateCommand{
+				CommandBase: CommandBase{
+					ResourceType: ItemTarget,
+					Id:           strings.TrimSpace(id),
+				},
+				Params: params,
+			}, nil
+		case string(Delete):
+			id, rest := scanWord(rest)
+			if rest != "" {
+				return nil, errors.New("extra arguments after delete").UseCode(errors.TopolithErrorInvalid)
+			}
+			return &ItemDeleteCommand{
+				CommandBase: CommandBase{
+					ResourceType: ItemTarget,
+					Id:           strings.TrimSpace(id),
+				},
+				oldParams: topolith.ItemSetParams{},
+			}, nil
+		case string(Set):
+		default:
+			// Setting params.
+			id, rest := scanWord(rest)
+			remainingWords := strings.Split(strings.TrimSpace(rest), " ")
+			possibleParams := kvPattern.FindAll([]byte(rest), -1)
+			if len(possibleParams) != len(remainingWords) {
+				return nil, errors.New("invalid params").UseCode(errors.TopolithErrorInvalid)
+			}
+			params, err := itemParamsFromString(rest)
+			if err != nil {
+				return nil, err
+			}
+			return &ItemSetCommand{
+				CommandBase: CommandBase{
+					ResourceType: ItemTarget,
+					Id:           strings.TrimSpace(id),
+				},
+				Params:    params,
+				oldParams: topolith.ItemSetParams{},
+			}, nil
+		}
 	case string(RelTarget):
-		return nil, nil
+		secondWord, rest := scanWord(rest)
+		switch secondWord {
+		case string(Create):
+			id, rest := scanWord(rest)
+			toId, rest := scanWord(rest)
+			params, err := relParamsFromString(rest)
+			if err != nil {
+				return nil, err
+			}
+			return &RelCreateCommand{
+				CommandBase: CommandBase{
+					ResourceType: RelTarget,
+					Id:           strings.TrimSpace(id),
+				},
+				ToId:   strings.TrimSpace(toId),
+				Params: params,
+			}, nil
+		case string(Delete):
+			id, rest := scanWord(rest)
+			toId, rest := scanWord(rest)
+			if rest != "" {
+				return nil, errors.New("extra arguments after delete").UseCode(errors.TopolithErrorInvalid)
+			}
+			return &RelDeleteCommand{
+				CommandBase: CommandBase{
+					ResourceType: RelTarget,
+					Id:           strings.TrimSpace(id),
+				},
+				ToId:      strings.TrimSpace(toId),
+				oldParams: topolith.RelSetParams{},
+			}, nil
+
+		case string(Set):
+		default:
+			// Setting params.
+			id, rest := scanWord(rest)
+			toId, rest := scanWord(rest)
+			remainingWords := strings.Split(strings.TrimSpace(rest), " ")
+			possibleParams := kvPattern.FindAll([]byte(rest), -1)
+			if len(possibleParams) != len(remainingWords) {
+				return nil, errors.New("invalid params").UseCode(errors.TopolithErrorInvalid)
+			}
+			params, err := relParamsFromString(rest)
+			if err != nil {
+				return nil, err
+			}
+			return &RelSetCommand{
+				CommandBase: CommandBase{
+					ResourceType: RelTarget,
+					Id:           strings.TrimSpace(id),
+				},
+				ToId:      strings.TrimSpace(toId),
+				Params:    params,
+				oldParams: topolith.RelSetParams{},
+			}, nil
+		}
 	case string(Nest):
-		return nil, nil
+		id, rest := scanWord(rest)
+		shouldBeIn, rest := scanWord(rest)
+		if shouldBeIn != "in" {
+			return nil, errors.New("nest command must have 'in' between IDs").UseCode(errors.TopolithErrorInvalid)
+		}
+		pid, rest := scanWord(rest)
+		if rest != "" {
+			return nil, errors.New("extra arguments after nest").UseCode(errors.TopolithErrorInvalid)
+		}
+		return &ItemNestCommand{
+			CommandBase: CommandBase{
+				ResourceType: ItemTarget,
+				Id:           strings.TrimSpace(id),
+			},
+			ParentId: strings.TrimSpace(pid),
+		}, nil
 	case string(Free):
-		return nil, nil
+		id, rest := scanWord(rest)
+		if rest != "" {
+			return nil, errors.New("extra arguments after free").UseCode(errors.TopolithErrorInvalid)
+		}
+		return &ItemFreeCommand{
+			CommandBase: CommandBase{
+				ResourceType: ItemTarget,
+				Id:           strings.TrimSpace(id),
+			},
+		}, nil
 	default:
 		return nil, errors.New("unknown command").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "command", Value: s})
 	}
+	return nil, errors.New("unknown command").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "command", Value: s})
 }
 
 // --- INTERNAL FUNCTIONS ---
@@ -421,16 +549,17 @@ func relParamsFromString(s string) (topolith.RelSetParams, error) {
 	return params, nil
 }
 
-// scanWord scans the first word from a string.
-// Scan over s until the first non-alpha character - take that as the first word.
-// Ex: "item! 123123" -> "item"
-func scanWord(s string) string {
+// scanWord scans the first word from a string, returning the first word and the rest.
+// Scan over s until the first whitespace - take that as the first word.
+// Ex: "item! 123123" -> "item!", " 123123"
+func scanWord(s string) (string, string) {
+	s = strings.TrimSpace(s)
 	for i, r := range s {
-		if !unicode.IsLetter(r) {
-			return s[:i]
+		if unicode.IsSpace(r) {
+			return s[:i], s[i:]
 		}
 	}
-	return s
+	return s, ""
 }
 
 func strPtr(s string) *string {

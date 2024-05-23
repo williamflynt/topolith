@@ -136,7 +136,7 @@ func (h *history) MakeCommand(resourceType CommandTarget, id string, verb Comman
 					ResourceType: resourceType,
 					Id:           id,
 				},
-				OldParentId: parentId,
+				oldParentId: parentId,
 			}, nil
 		default:
 			return nil, errors.New("unknown verb for Item").UseCode(errors.TopolithErrorInvalid)
