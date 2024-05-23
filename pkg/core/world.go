@@ -80,6 +80,7 @@ type world struct {
 	History []Command       `json:"history"` // History is a list of commands that have been executed.
 	Tree    Tree            `json:"tree"`    // Tree is a tree representation of the World.
 
+	historyIdx int   // historyIdx is the index of the last executed command in the History list.
 	latestItem *Item // latestItem is the last Item that was created or modified. This will be returned by the Item() method.
 	latestRel  *Rel  // latestRel is the last Rel that was created or modified. This will be returned by the Rel() method.
 	latestErr  error // latestErr is any error that occurred during the most recent operation.
@@ -276,7 +277,7 @@ func (w world) RelFetch(fromId, toId string, strict bool) []Rel {
 	if strict {
 		return []Rel{w.Rels[relIdFromIds(fromId, toId)]}
 	}
-	rels := []Rel{}
+	rels := make([]Rel, 0)
 	leftIds := append(w.Tree.GetDescendantIds(fromId), fromId)
 	rightIds := append(w.Tree.GetDescendantIds(toId), toId)
 	for _, rel := range w.Rels {
