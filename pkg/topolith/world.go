@@ -114,6 +114,9 @@ func (w world) ItemCreate(id string, params ItemSetParams) WorldWithItem {
 		return w
 	}
 	if existing, ok := w.Items[id]; ok {
+		// TODO: Resolve Create vs CreateOrSet - confusing UX? Idempotency, but what's the intent?
+		w.ItemSet(id, params)
+		w.Items[id] = existing
 		w.latestItem = &existing
 		return w
 	}
