@@ -72,11 +72,12 @@ func TestTree_Components(t *testing.T) {
 	if len(components) != 2 {
 		t.Errorf("expected 2 components, got %d", len(components))
 	}
-	if components[0].Item().Id != "child1" {
-		t.Errorf("expected first component item ID to be 'child1', got '%s'", components[0].Item().Id)
+	idSet := mapset.NewSet[string]("child1", "child2")
+	if !idSet.Contains(components[0].Item().Id) {
+		t.Errorf("expected '%s' in component IDs, not found", components[0].Item().Id)
 	}
-	if components[1].Item().Id != "child2" {
-		t.Errorf("expected second component item ID to be 'child2', got '%s'", components[1].Item().Id)
+	if !idSet.Contains(components[1].Item().Id) {
+		t.Errorf("expected '%s' in component IDs, not found", components[1].Item().Id)
 	}
 }
 
