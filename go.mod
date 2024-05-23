@@ -5,6 +5,7 @@ go 1.22.3
 require (
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/deckarep/golang-set/v2 v2.6.0
+	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 )
 
 require (

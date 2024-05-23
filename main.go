@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/c-bata/go-prompt"
+	"github.com/kballard/go-shellquote"
 	"strings"
 )
 
@@ -13,13 +14,17 @@ func executor(input string) {
 		return
 	}
 
-	args := strings.Fields(input)
+	args, err := shellquote.Split(input)
+	if err != nil {
+		fmt.Println("Error parsing input:", err)
+		return
+	}
 	command := args[0]
 	switch command {
 	case "save":
-		handleWorldCommand(args[1:])
+		handleSaveCommand(args[1:])
 	case "load":
-		handleWorldCommand(args[1:])
+		handleLoadCommand(args[1:])
 	case "world":
 		handleWorldCommand(args[1:])
 	case "item":
@@ -35,7 +40,7 @@ func executor(input string) {
 	case "undo":
 		handleUndoCommand(args[1:])
 	case "redo":
-		handleUndoCommand(args[1:])
+		handleRedoCommand(args[1:])
 	default:
 		fmt.Println("Unknown command:", command)
 	}
