@@ -1,0 +1,163 @@
+package grammar
+
+type parser Peg {
+    resourceType string
+    resourceId   string
+    secondaryId  string
+    verb         string
+    params       map[string]string
+    strict       bool
+}
+
+Command
+  <- _ (Mutation / Query / StateBound) END
+
+Mutation
+  <- Item (CREATE / SET) Identifier ItemParams?
+  / Item CLEAR Identifier ItemKeys
+  / Item DELETE Identifier
+  / Rel (CREATE / SET) DualIdentifier RelParams?
+  / Rel CLEAR DualIdentifier RelKeys
+  / Rel DELETE DualIdentifier
+  / NEST Identifier IN Identifier
+  / FREE Identifier
+
+Query
+  <- FetchQuery / ExistsQuery
+
+FetchQuery
+  <- Item FETCH Identifier
+  / Item IN Identifier
+  / Rel FETCH DualIdentifier
+  / Rel Identifier !Identifier
+
+ExistsQuery
+  <- ItemExists Identifier
+  / IN_QUERY Identifier
+  / RelExists DualIdentifier
+
+StateBound
+  <- CreateOrFetch / CreateOrSet
+
+CreateOrFetch
+  <- Item Identifier !ItemParams / Rel DualIdentifier !RelParams
+
+CreateOrSet
+  <- Item Identifier ItemParams / Rel DualIdentifier RelParams
+
+DualIdentifier
+  <- Identifier Identifier
+
+Identifier
+  <- !(Keyword) StringLike
+
+ItemParams
+  <- (ItemParam)+
+
+RelParams
+  <- (RelParam)+
+
+ItemParam
+  <- EXTERNAL EQUALS Boolean
+  / TYPE EQUALS ItemType
+  / NAME EQUALS StringLike
+  / MECHANISM EQUALS StringLike
+  / EXPANDED EQUALS StringLike
+
+RelParam
+  <- VERB EQUALS StringLike
+  / MECHANISM EQUALS StringLike
+  / ASYNC EQUALS Boolean
+  / EXPANDED EQUALS StringLike
+
+ItemKeys
+    <- (ItemKey)+
+
+RelKeys
+    <- (RelKey)+
+
+ItemKey
+    <- (NAME / TYPE / EXTERNAL / MECHANISM / EXPANDED) _
+
+RelKey
+    <- (VERB / MECHANISM / ASYNC / EXPANDED) _
+
+StringLike
+  <- (Text / QuotedText) _
+
+Boolean
+  <- TRUE / FALSE
+
+Text
+  <- [a-zA-Z0-9-_]+
+
+QuotedText
+ <- QUOTE [a-zA-Z0-9-_.,!@#$%^&*()\[\]+=~ ]* QUOTE
+
+ItemType
+  <- PERSON / DATABASE / QUEUE / BLOBSTORE / BROWSER / MOBILE / SERVER / DEVICE / CODE
+
+ItemExists
+  <- ITEM_EXISTS / Item EXISTS
+
+RelExists
+  <- REL_EXISTS / Rel EXISTS
+
+Item
+  <- ITEM
+
+Rel
+  <- REL
+
+Keyword
+  <- ITEM / ITEM_EXISTS / REL / REL_EXISTS / IN / IN_QUERY / CREATE / DELETE / SET / CLEAR / FETCH / EXISTS / FREE / NEST
+
+ITEM        <- 'item' _
+ITEM_EXISTS <- 'item?' _
+REL         <- 'rel' _
+REL_EXISTS  <- 'rel?' _
+IN          <- 'in' _
+IN_QUERY    <- 'in?' _
+CREATE      <- 'create' _
+DELETE      <- 'delete' _
+SET         <- 'set' _
+CLEAR       <- 'clear' _
+FETCH       <- 'fetch' _
+EXISTS      <- 'exists' _
+FREE        <- 'free' _
+NEST        <- 'nest' _
+TRUE        <- 'true' _
+FALSE       <- 'false' _
+
+EXTERNAL    <- 'external'
+NAME        <- 'name'
+TYPE        <- 'type'
+VERB        <- 'verb'
+MECHANISM   <- 'mechanism'
+ASYNC       <- 'async'
+EXPANDED    <- 'expanded'
+
+PERSON      <- 'person' _
+DATABASE    <- 'database' _
+QUEUE       <- 'queue' _
+BLOBSTORE   <- 'blobstore' _
+BROWSER     <- 'browser' _
+MOBILE      <- 'mobile' _
+SERVER      <- 'server' _
+DEVICE      <- 'device' _
+CODE        <- 'code' _
+
+QUOTE       <- '"'
+EQUALS      <- '='
+
+_
+  <- Whitespace*
+
+Whitespace
+  <- ' ' / '\t' / EOL
+
+EOL
+  <- '\r\n' / '\n' / '\r'
+
+END
+  <- !.
