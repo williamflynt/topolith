@@ -1,12 +1,7 @@
 package grammar
 
-type parser Peg {
-    resourceType string
-    resourceId   string
-    secondaryId  string
-    verb         string
-    params       map[string]string
-    strict       bool
+type Parser Peg {
+    InputAttributes inputAttributes
 }
 
 Command

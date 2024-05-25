@@ -27,6 +27,5 @@ To regenerate the `pkg/grammar/repl.peg.go` file:
 
 ```sh
 go install github.com/pointlander/peg && \
-cd pkg/grammar && \
-peg -inline -switch -strict -output repl.peg.go repl.peg
+peg -inline -switch -strict -output pkg/grammar/grammar.peg.go pkg/grammar/grammar.peg
 ```

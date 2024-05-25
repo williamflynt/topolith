@@ -1,6 +1,8 @@
 package grammar
 
-import "testing"
+import (
+	"testing"
+)
 
 var testCommands = []struct {
 	Input       string
@@ -58,34 +60,10 @@ var testCommands = []struct {
 	{`rel clear abc123 honkhonn async=true`, true},
 }
 
-func parse(s string) (*parser, error) {
-	p := &parser{
-		resourceType: "",
-		resourceId:   "",
-		secondaryId:  "",
-		verb:         "",
-		params:       make(map[string]string),
-		strict:       false,
-		Buffer:       s,
-		buffer:       nil,
-		rules:        [67]func() bool{},
-		parse:        nil,
-		reset:        nil,
-		Pretty:       false,
-	}
-	if err := p.Init(); err != nil {
-		return p, err
-	}
-	if err := p.Parse(); err != nil {
-		return p, err
-	}
-	return p, nil
-}
-
 func TestCommands(t *testing.T) {
 	for _, c := range testCommands {
 		t.Run(c.Input, func(t *testing.T) {
-			p, err := parse(c.Input)
+			p, err := Parse(c.Input)
 			if c.ExpectError {
 				if err == nil {
 					t.Errorf("expected error for command: '%s', but got none", c.Input)
