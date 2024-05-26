@@ -1,7 +1,7 @@
 package grammar
 
-// inputAttributes is a struct that holds information from the parsed input to the REPL.
-type inputAttributes struct {
+// InputAttributes is a struct that holds information from the parsed input to the REPL.
+type InputAttributes struct {
 	ResourceType string            `json:"resourceType"`
 	ResourceId   string            `json:"resourceId"`
 	SecondaryId  string            `json:"secondaryId"`
