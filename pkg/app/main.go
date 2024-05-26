@@ -1,17 +1,18 @@
 package app
 
 import (
+	"fmt"
 	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/grammar"
 	"github.com/williamflynt/topolith/pkg/world"
 )
 
 type App interface {
-	World() world.World            // World returns the world.World associated with this App.
-	Exec(s string) (string, error) // Exec parses the given string to a valid Command and executes it. Return a string response, and any error from parsing or executing Command.
-	History() []Command            // History returns the list of Command that have been executed for the present state of the world.World.
-	CanUndo() bool                 // CanUndo indicates whether more Command objects exist to Undo.
-	CanRedo() bool                 // CanRedo indicates whether more Command objects exist to Redo.
+	World() world.World   // World returns the world.World associated with this App.
+	Exec(s string) string // Exec parses the given string to a valid Command and executes it. Return a string response in accordance with our grammar.
+	History() []Command   // History returns the list of Command that have been executed for the present state of the world.World.
+	CanUndo() bool        // CanUndo indicates whether more Command objects exist to Undo.
+	CanRedo() bool        // CanRedo indicates whether more Command objects exist to Redo.
 }
 
 func NewApp(world world.World) (App, error) {
@@ -36,17 +37,23 @@ func (h *app) World() world.World {
 	return h.world
 }
 
-func (h *app) Exec(s string) (string, error) {
+func (h *app) Exec(s string) string {
 	p, err := grammar.Parse(s)
 	if err != nil {
 		p.PrintSyntaxTree()
-		return "", err
+		return "\nerror 400 " + err.Error()
 	}
 	c, err := inputToCommand(p.InputAttributes)
 	if err != nil {
-		return "", err
+		return "\nerror 400 " + err.Error()
+
 	}
-	return h.exec(c)
+	stringerObj, err := h.exec(c)
+	response := stringerObj.String() + "\nerror " + err.Error()
+	if p, err := grammar.Parse(response); err != nil || p.StmtType != "Response" {
+		return "\nerror 500 " + err.Error()
+	}
+	return response
 }
 
 func (h *app) History() []Command {
@@ -63,7 +70,7 @@ func (h *app) CanRedo() bool {
 
 // --- INTERNAL ---
 
-func (h *app) exec(c Command) (string, error) {
+func (h *app) exec(c Command) (fmt.Stringer, error) {
 	return c.Execute(h.world)
 }
 

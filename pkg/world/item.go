@@ -1,5 +1,10 @@
 package world
 
+import (
+	"fmt"
+	"strings"
+)
+
 // ItemType is an iota that represents the type of Item.
 type ItemType int
 
@@ -76,13 +81,34 @@ type Item struct {
 	Expanded  string   `json:"expanded"`  // Expanded is the expanded description of the Item. This may not always be relevant for a strict C4 diagram.
 }
 
+func (i Item) String() string {
+	item := fmt.Sprintf(`item "%s" external=%t`, i.Id, i.External)
+	paramRepr := make([]string, 0)
+	if i.Type > 0 {
+		paramRepr = append(paramRepr, fmt.Sprintf(`type=%s`, StringFromItemType(i.Type)))
+	}
+	if i.Name != "" {
+		paramRepr = append(paramRepr, fmt.Sprintf(`name="%s"`, i.Name))
+	}
+	if i.Mechanism != "" {
+		paramRepr = append(paramRepr, fmt.Sprintf(`mechanism="%s"`, i.Mechanism))
+	}
+	if i.Expanded != "" {
+		paramRepr = append(paramRepr, fmt.Sprintf(`expanded="%s"`, i.Expanded))
+	}
+	if len(paramRepr) > 0 {
+		item += " " + strings.Join(paramRepr, " ")
+	}
+	return item
+}
+
 // id returns the ID of the Item.
 func (i Item) id() string {
 	return i.Id
 }
 
-// ItemSetParams is a struct that represents the parameters that can be set on an Item.
-type ItemSetParams struct {
+// ItemParams is a struct that represents the parameters that can be set on an Item.
+type ItemParams struct {
 	External  *bool   `json:"external"`
 	Type      *string `json:"type"`
 	Name      *string `json:"name"`

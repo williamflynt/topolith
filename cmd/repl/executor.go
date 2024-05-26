@@ -23,10 +23,7 @@ func executor(app app.App) prompt.Executor {
 			return
 		}
 
-		resp, err := app.Exec(input)
+		resp := app.Exec(input)
 		fmt.Println(resp)
-		if err != nil {
-			fmt.Println(err)
-		}
 	}
 }

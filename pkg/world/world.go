@@ -2,6 +2,7 @@ package world
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/williamflynt/topolith/pkg/errors"
 	"slices"
 	"strconv"
@@ -19,15 +20,15 @@ type Info interface {
 
 // Operations is an interface that represents operations over the state of the World.
 type Operations interface {
-	ItemCreate(id string, params ItemSetParams) WorldWithItem // ItemCreate creates a new Item in the World, or retrieves it if already exists.
-	ItemDelete(id string) World                               // ItemDelete deletes an Item from the World. If the item doesn't exist, noop.
-	ItemFetch(id string) (Item, bool)                         // ItemFetch fetches an Item from the World. Returns an "okay" boolean, which is true only if the Item exists.
-	ItemSet(id string, params ItemSetParams) WorldWithItem    // ItemSet sets the not-nil attributes from ItemSetParams on Item that has the given ID.
+	ItemCreate(id string, params ItemParams) WorldWithItem // ItemCreate creates a new Item in the World, or retrieves it if already exists.
+	ItemDelete(id string) World                            // ItemDelete deletes an Item from the World. If the item doesn't exist, noop.
+	ItemFetch(id string) (Item, bool)                      // ItemFetch fetches an Item from the World. Returns an "okay" boolean, which is true only if the Item exists.
+	ItemSet(id string, params ItemParams) WorldWithItem    // ItemSet sets the not-nil attributes from ItemParams on Item that has the given ID.
 
-	RelCreate(fromId, toId string, params RelSetParams) WorldWithRel // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
-	RelDelete(fromId, toId string) World                             // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
-	RelFetch(fromId, toId string, strict bool) []Rel                 // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
-	RelSet(fromId, toId string, params RelSetParams) WorldWithRel    // RelSet sets the not-nil attributes from RelSetParams on Rel that has the given fromId and toId.
+	RelCreate(fromId, toId string, params RelParams) WorldWithRel // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
+	RelDelete(fromId, toId string) World                          // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
+	RelFetch(fromId, toId string, strict bool) []Rel              // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
+	RelSet(fromId, toId string, params RelParams) WorldWithRel    // RelSet sets the not-nil attributes from RelParams on Rel that has the given fromId and toId.
 
 	In(childId, parentId string, strict bool) bool // In checks if a child Item is nested anywhere under a parent Item. If strict is true, it will only return true if the childId and parentId match exactly.
 	Parent(childId string) (string, bool)          // Parent returns the ID of the parent Item of the given child Item. An empty string is returned if the child Item has no parent. The okay boolean is false if the childId isn't found.
@@ -42,6 +43,7 @@ type Operations interface {
 type World interface {
 	Info
 	Operations
+	fmt.Stringer
 }
 
 // WorldWithItem is an interface that represents a World with a possible Item from the last operation.
@@ -94,6 +96,14 @@ func CreateWorld(name string) World {
 	}
 }
 
+func (w *world) String() string {
+	bytes, err := json.Marshal(w)
+	if err != nil {
+		return "error Error marshalling World to JSON"
+	}
+	return string(bytes)
+}
+
 func (w *world) Version() int {
 	return w.Version_
 }
@@ -110,7 +120,7 @@ func (w *world) Expanded() string {
 	return w.Expanded_
 }
 
-func (w *world) ItemCreate(id string, params ItemSetParams) WorldWithItem {
+func (w *world) ItemCreate(id string, params ItemParams) WorldWithItem {
 	w.resetLatestTrackers()
 	if id == "" {
 		w.latestErr = errors.New("id cannot be empty")
@@ -158,7 +168,7 @@ func (w *world) ItemFetch(id string) (Item, bool) {
 	return item, ok
 }
 
-func (w *world) ItemSet(id string, params ItemSetParams) WorldWithItem {
+func (w *world) ItemSet(id string, params ItemParams) WorldWithItem {
 	w.resetLatestTrackers()
 	item, ok := w.Items[id]
 	if !ok {
@@ -192,7 +202,7 @@ func (w *world) ItemSet(id string, params ItemSetParams) WorldWithItem {
 	return w
 }
 
-func (w *world) RelCreate(fromId, toId string, params RelSetParams) WorldWithRel {
+func (w *world) RelCreate(fromId, toId string, params RelParams) WorldWithRel {
 	w.resetLatestTrackers()
 	fromItem, ok := w.ItemFetch(fromId)
 	if !ok {
@@ -251,7 +261,7 @@ func (w *world) RelFetch(fromId, toId string, strict bool) []Rel {
 	return rels
 }
 
-func (w *world) RelSet(fromId, toId string, params RelSetParams) WorldWithRel {
+func (w *world) RelSet(fromId, toId string, params RelParams) WorldWithRel {
 	w.resetLatestTrackers()
 	rel, ok := w.Rels[relIdFromIds(fromId, toId)]
 	if !ok {
@@ -363,16 +373,22 @@ func (w *world) Err() error {
 }
 
 func (w *world) Item() (Item, error) {
+	if w.latestItem == nil {
+		return Item{}, w.latestErr
+	}
 	return *w.latestItem, w.latestErr
 }
 
 func (w *world) Rel() (Rel, error) {
+	if w.latestRel == nil {
+		return Rel{}, w.latestErr
+	}
 	return *w.latestRel, w.latestErr
 }
 
 // --- INTERNAL HELPERS ---
 
-func equalItemParams(existing Item, params ItemSetParams) error {
+func equalItemParams(existing Item, params ItemParams) error {
 	if (params.Name != nil && *params.Name != existing.Name) ||
 		(params.Expanded != nil && *params.Expanded != existing.Expanded) ||
 		(params.External != nil && *params.External != existing.External) ||
@@ -392,7 +408,7 @@ func equalItemParams(existing Item, params ItemSetParams) error {
 	return nil
 }
 
-func equalRelParams(existing Rel, params RelSetParams) error {
+func equalRelParams(existing Rel, params RelParams) error {
 	if (params.Verb != nil && *params.Verb != existing.Verb) ||
 		(params.Mechanism != nil && *params.Mechanism != existing.Mechanism) ||
 		(params.Async != nil && *params.Async != existing.Async) ||

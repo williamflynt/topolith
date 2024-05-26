@@ -65,6 +65,11 @@ func New(text string) TopolithError {
 	}
 }
 
+// String returns a grammar-compatible string representation of the TopolithError.
+func (e TopolithError) String() string {
+	return fmt.Sprintf(`error %d "%s: %s"`, e.Code, e.Description, e.Message)
+}
+
 // Error returns a string representation of the TopolithError.
 func (e TopolithError) Error() string {
 	return fmt.Sprintf("TopolithError %d %s: %s", e.Code, e.Description, e.Message)
