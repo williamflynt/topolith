@@ -2,6 +2,7 @@ package grammar
 
 type Parser Peg {
     InputAttributes
+    Response
 }
 
 Valid
@@ -103,7 +104,7 @@ RelKey
     <- (VERB / MECHANISM / ASYNC / EXPANDED) _
 
 Error
-  <- ERROR StringLike*
+  <- ERROR Number StringLike*
 
 StringLike
   <- (Text / QuotedText) _

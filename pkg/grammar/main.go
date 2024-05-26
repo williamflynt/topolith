@@ -10,6 +10,15 @@ type InputAttributes struct {
 	Strict       bool              `json:"strict"`
 }
 
+// Response is a struct that holds the response from our grammar.
+type Response struct {
+	Object string `json:"object"`
+	Error  struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
 // Parse function to validate and pull information from the input to the REPL.
 func Parse(s string) (*Parser, error) {
 	p := &Parser{Buffer: s}

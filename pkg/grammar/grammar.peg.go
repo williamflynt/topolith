@@ -317,6 +317,7 @@ func (t *tokens32) Tokens() []token32 {
 
 type Parser struct {
 	InputAttributes
+	Response
 
 	Buffer string
 	buffer []rune
@@ -1423,6 +1424,9 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 										goto l114
 									}
 									add(ruleERROR, position117)
+								}
+								if !_rules[ruleNumber]() {
+									goto l114
 								}
 							l118:
 								{
@@ -2563,7 +2567,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 		nil,
 		/* 24 RelKey <- <(((&('e') EXPANDED) | (&('a') ASYNC) | (&('m') MECHANISM) | (&('v') VERB)) _)> */
 		nil,
-		/* 25 Error <- <(ERROR StringLike*)> */
+		/* 25 Error <- <(ERROR Number StringLike*)> */
 		nil,
 		/* 26 StringLike <- <((Text / QuotedText) _)> */
 		func() bool {
