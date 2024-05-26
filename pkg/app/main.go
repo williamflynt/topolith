@@ -2,18 +2,16 @@ package app
 
 import (
 	"github.com/williamflynt/topolith/pkg/errors"
+	"github.com/williamflynt/topolith/pkg/grammar"
 	"github.com/williamflynt/topolith/pkg/world"
 )
 
 type App interface {
-	World() world.World        // World returns the world.World associated with this App.
-	Exec(c Command) error      // Exec executes the Command and adds it to History, returning any error.
-	ExecString(s string) error // ExecString converts the given string to a valid Command and executes it. If the command is invalid, return an error. Return any error from executing a valid Command.
-	History() []Command        // History returns the list of Command that have been executed for the present state of the world.World.
-	Undo() (error, int)        // Undo reverses the last operation on the World. If there are no operations to undo, noop. Return any error that occurred and the number of operations left to undo.
-	Redo() (error, int)        // Redo executes the most recently reversed operation on the World. If there are no operations to redo, noop. Return any error that occurred and the number of operations left to redo.
-	CanUndo() bool             // CanUndo indicates whether more Command objects exist to Undo.
-	CanRedo() bool             // CanRedo indicates whether more Command objects exist to Redo.
+	World() world.World            // World returns the world.World associated with this App.
+	Exec(s string) (string, error) // Exec parses the given string to a valid Command and executes it. Return a string response, and any error from parsing or executing Command.
+	History() []Command            // History returns the list of Command that have been executed for the present state of the world.World.
+	CanUndo() bool                 // CanUndo indicates whether more Command objects exist to Undo.
+	CanRedo() bool                 // CanRedo indicates whether more Command objects exist to Redo.
 }
 
 func NewApp(world world.World) (App, error) {
@@ -38,23 +36,38 @@ func (h *app) World() world.World {
 	return h.world
 }
 
-func (h *app) Exec(c Command) error {
-	return c.Execute(h.world)
-}
-
-func (h *app) ExecString(s string) error {
-	c, err := ParseCommand(s)
+func (h *app) Exec(s string) (string, error) {
+	p, err := grammar.Parse(s)
 	if err != nil {
-		return err
+		p.PrintSyntaxTree()
+		return "", err
 	}
-	return h.Exec(c)
+	c, err := inputToCommand(p.InputAttributes)
+	if err != nil {
+		return "", err
+	}
+	return h.exec(c)
 }
 
 func (h *app) History() []Command {
 	return h.commands[:h.commandsIdx+1]
 }
 
-func (h *app) Undo() (error, int) {
+func (h *app) CanUndo() bool {
+	return h.commandsIdx >= 0
+}
+
+func (h *app) CanRedo() bool {
+	return h.commandsIdx < len(h.commands)-1
+}
+
+// --- INTERNAL ---
+
+func (h *app) exec(c Command) (string, error) {
+	return c.Execute(h.world)
+}
+
+func (h *app) undo() (error, int) {
 	if h.commandsIdx < 0 {
 		return nil, 0
 	}
@@ -69,11 +82,12 @@ func (h *app) Undo() (error, int) {
 	return nil, len(h.commands) - h.commandsIdx - 1
 }
 
-func (h *app) Redo() (error, int) {
+func (h *app) redo() (error, int) {
 	if h.commandsIdx >= len(h.commands)-1 {
 		return nil, 0
 	}
-	if err := h.commands[h.commandsIdx].Execute(h.world); err != nil {
+	_, err := h.commands[h.commandsIdx].Execute(h.world)
+	if err != nil {
 		// We aren't going to validate state of the World. But a problem happened.
 		// Clear app, reset commandsIdx, and return the error.
 		h.commands = make([]Command, 0)
@@ -82,12 +96,4 @@ func (h *app) Redo() (error, int) {
 	}
 	h.commandsIdx++
 	return nil, len(h.commands) - h.commandsIdx - 1
-}
-
-func (h *app) CanUndo() bool {
-	return h.commandsIdx >= 0
-}
-
-func (h *app) CanRedo() bool {
-	return h.commandsIdx < len(h.commands)-1
 }

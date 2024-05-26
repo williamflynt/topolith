@@ -5,7 +5,7 @@ type Parser Peg {
 }
 
 Valid
-  <- Response / Command
+  <- Command / Response
 
 Response
   <- Object? _ EOL Error? END
@@ -54,7 +54,7 @@ Object
 
 WorldObject
   # This is laziness - I'm planning to just use JSON here...
-  <- WORLD .* _
+  <- '$$' WORLD .* ENDWORLD '$$'
 
 ItemObject
   <- Item Identifier ItemParams?
@@ -156,6 +156,8 @@ Keyword
   <- ITEM / ITEM_EXISTS / REL / REL_EXISTS / FROM_QUERY / TO_QUERY / IN / IN_QUERY / CREATE / DELETE / SET / CLEAR / FETCH / EXISTS / FREE / NEST / FLAG
 
 WORLD       <- 'world' _
+ENDWORLD    <- 'endworld' _
+ERROR       <- 'error' _
 ITEM        <- 'item' 's'? _
 ITEM_EXISTS <- 'item?' _
 REL         <- 'rel' 's'? _
@@ -201,8 +203,6 @@ FLAG       <- '-' / '--'
 STRICT     <- 'strict' _
 VERBOSE    <- 'verbose' _
 IDS        <- 'ids' _
-
-ERROR       <- 'error' _
 
 _
   <- Whitespace*
