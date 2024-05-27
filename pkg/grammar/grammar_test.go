@@ -7,6 +7,9 @@ import (
 	"testing"
 )
 
+// TODO(wf 27 May 2024): More robust testing for commands.
+// TODO(wf 27 May 2024): Test responses, errors, World representation and parsing.
+
 var testCommands = []struct {
 	In  string
 	Err bool
@@ -32,6 +35,7 @@ var testCommands = []struct {
 	{In: "items in abc123", Err: false, Out: InputAttributes{ResourceType: "item", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "list", Params: map[string]string{}, Flags: []string{}}},
 	{In: "world", Err: false, Out: InputAttributes{ResourceType: "world", ResourceId: "", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "fetch", Params: map[string]string{}, Flags: []string{}}},
 	{In: "item list 10", Err: false, Out: InputAttributes{ResourceType: "item", ResourceId: "", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "list", Params: map[string]string{"limit": "10"}, Flags: []string{}}},
+	{In: "items list 10", Err: false, Out: InputAttributes{ResourceType: "item", ResourceId: "", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "list", Params: map[string]string{"limit": "10"}, Flags: []string{}}},
 	{In: "rel list", Err: false, Out: InputAttributes{ResourceType: "rel", ResourceId: "", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "list", Params: map[string]string{}, Flags: []string{}}},
 	{In: "to? abc123", Err: false, Out: InputAttributes{ResourceType: "rel", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "to?", Params: map[string]string{}, Flags: []string{}}},
 	{In: "from? abc123", Err: false, Out: InputAttributes{ResourceType: "rel", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "from?", Params: map[string]string{}, Flags: []string{}}},

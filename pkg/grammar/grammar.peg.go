@@ -66,10 +66,10 @@ const (
 	ruleList
 	ruleNest
 	ruleFree
+	ruleExists
 	ruleInQuery
 	ruleFromQuery
 	ruleToQuery
-	ruleExists
 	ruleFlag
 	ruleStrictFlag
 	ruleVerboseFlag
@@ -229,10 +229,10 @@ var rul3s = [...]string{
 	"List",
 	"Nest",
 	"Free",
+	"Exists",
 	"InQuery",
 	"FromQuery",
 	"ToQuery",
-	"Exists",
 	"Flag",
 	"StrictFlag",
 	"VerboseFlag",
@@ -671,16 +671,16 @@ func (p *Parser) Execute() {
 			p.InputAttributes.Verb = "free"
 			p.InputAttributes.ResourceType = "item"
 		case ruleAction42:
+			p.InputAttributes.Verb = "exists"
+			p.InputAttributes.ResourceType = "rel"
+		case ruleAction43:
 			p.InputAttributes.Verb = "in?"
 			p.InputAttributes.ResourceType = "item"
-		case ruleAction43:
+		case ruleAction44:
 			p.InputAttributes.Verb = "from?"
 			p.InputAttributes.ResourceType = "rel"
-		case ruleAction44:
-			p.InputAttributes.Verb = "to?"
-			p.InputAttributes.ResourceType = "rel"
 		case ruleAction45:
-			p.InputAttributes.Verb = "exists"
+			p.InputAttributes.Verb = "to?"
 			p.InputAttributes.ResourceType = "rel"
 		case ruleAction46:
 			p.InputAttributes.Flags = append(p.InputAttributes.Flags, "strict")
@@ -1263,7 +1263,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 															goto l67
 														}
 														{
-															add(ruleAction43, position)
+															add(ruleAction44, position)
 														}
 														add(ruleFromQuery, position81)
 													}
@@ -1277,7 +1277,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 															goto l67
 														}
 														{
-															add(ruleAction44, position)
+															add(ruleAction45, position)
 														}
 														add(ruleToQuery, position83)
 													}
@@ -1333,7 +1333,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 													goto l89
 												}
 												{
-													add(ruleAction42, position)
+													add(ruleAction43, position)
 												}
 												add(ruleInQuery, position90)
 											}
@@ -3535,30 +3535,30 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 		nil,
 		/* 47 Free <- <(FREE Action41)> */
 		nil,
-		/* 48 InQuery <- <(IN_QUERY Action42)> */
-		nil,
-		/* 49 FromQuery <- <(FROM_QUERY Action43)> */
-		nil,
-		/* 50 ToQuery <- <(TO_QUERY Action44)> */
-		nil,
-		/* 51 Exists <- <(EXISTS Action45)> */
+		/* 48 Exists <- <(EXISTS Action42)> */
 		func() bool {
-			position353, tokenIndex353 := position, tokenIndex
+			position350, tokenIndex350 := position, tokenIndex
 			{
-				position354 := position
+				position351 := position
 				if !_rules[ruleEXISTS]() {
-					goto l353
+					goto l350
 				}
 				{
-					add(ruleAction45, position)
+					add(ruleAction42, position)
 				}
-				add(ruleExists, position354)
+				add(ruleExists, position351)
 			}
 			return true
-		l353:
-			position, tokenIndex = position353, tokenIndex353
+		l350:
+			position, tokenIndex = position350, tokenIndex350
 			return false
 		},
+		/* 49 InQuery <- <(IN_QUERY Action43)> */
+		nil,
+		/* 50 FromQuery <- <(FROM_QUERY Action44)> */
+		nil,
+		/* 51 ToQuery <- <(TO_QUERY Action45)> */
+		nil,
 		/* 52 Flag <- <(StrictFlag / VerboseFlag / IdsFlag)> */
 		nil,
 		/* 53 StrictFlag <- <(FLAG STRICT Action46)> */
@@ -4903,13 +4903,13 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 		nil,
 		/* 152 Action41 <- <{ p.InputAttributes.Verb = "free"; p.InputAttributes.ResourceType = "item" }> */
 		nil,
-		/* 153 Action42 <- <{ p.InputAttributes.Verb = "in?"; p.InputAttributes.ResourceType = "item" }> */
+		/* 153 Action42 <- <{ p.InputAttributes.Verb = "exists"; p.InputAttributes.ResourceType = "rel" }> */
 		nil,
-		/* 154 Action43 <- <{ p.InputAttributes.Verb = "from?"; p.InputAttributes.ResourceType = "rel" }> */
+		/* 154 Action43 <- <{ p.InputAttributes.Verb = "in?"; p.InputAttributes.ResourceType = "item" }> */
 		nil,
-		/* 155 Action44 <- <{ p.InputAttributes.Verb = "to?"; p.InputAttributes.ResourceType = "rel" }> */
+		/* 155 Action44 <- <{ p.InputAttributes.Verb = "from?"; p.InputAttributes.ResourceType = "rel" }> */
 		nil,
-		/* 156 Action45 <- <{ p.InputAttributes.Verb = "exists"; p.InputAttributes.ResourceType = "rel" }> */
+		/* 156 Action45 <- <{ p.InputAttributes.Verb = "to?"; p.InputAttributes.ResourceType = "rel" }> */
 		nil,
 		/* 157 Action46 <- <{ p.InputAttributes.Flags = append(p.InputAttributes.Flags, "strict") }> */
 		nil,
