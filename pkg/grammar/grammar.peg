@@ -4,6 +4,10 @@ type Parser Peg {
     StmtType       string
     InputAttributes
     Response
+
+    text   string // Text parsed by the StringLike rule.
+    number int    // Number parsed by the Number rule.
+    bool   bool   // Boolean parsed by the Boolean rule.
 }
 
 Valid
@@ -12,53 +16,52 @@ Valid
 Response
   <- Object? _ EOL Error? END
   {
-    p.StmtType = "response"
+    p.StmtType = "Response"
   }
 
 Command
-  <- _ (Mutation / Query / StateBound) Flag* END
+  <- _ (Mutation / TreeMutation / Query / StateBound) Flag* END
+  {
+    p.StmtType = "Command"
+  }
 
 Mutation
-  <- Item (CREATE / SET) Identifier ItemParams?
-  / Item CLEAR Identifier ItemKeys
-  / Item DELETE Identifier
-  / Rel (CREATE / SET) DualIdentifier RelParams?
-  / Rel CLEAR DualIdentifier RelKeys
-  / Rel DELETE DualIdentifier
-  / NEST Identifier+ IN Identifier
-  / FREE Identifier+
-  {
-    p.StmtType = "Mutation"
-  }
+  <- Item (Create / Set) Identifier ItemParams?
+  / Item Clear Identifier ItemKeys
+  / Item Delete Identifier
+  / Rel (Create / Set) DualIdentifier RelParams?
+  / Rel Clear DualIdentifier RelKeys
+  / Rel Delete DualIdentifier
+
+TreeMutation
+  <- Free IdentifierList
+  / Nest IdentifierList _ IN <StringLike> { p.InputAttributes.SecondaryIds = append(p.InputAttributes.SecondaryIds, cleanString(text)) }
 
 Query
-  <- FetchQuery / ExistsQuery
+  <- FetchQuery / ListQuery / ExistsQuery
 
 FetchQuery
-  <- Item FETCH Identifier
-  / ItemsList
-  / Rel FETCH DualIdentifier
+  <- Item Fetch Identifier
+  / Rel Fetch DualIdentifier
+  / World { p.InputAttributes.Verb = "fetch" }
+
+ListQuery
+  <- (Item / Rel ) List Limit?
+  # Get all Items under this one in the Tree.
+  / Item IN Identifier  { p.InputAttributes.Verb = "list" }
+  # Get all Rels To or From this Item.
   / Rel Identifier !Identifier
-  / RelsList
-  / IN_QUERY Identifier
-  / Item IN Identifier
-  / WORLD
-  {
-    p.StmtType = "FetchQuery"
-  }
+  / ToQuery Identifier
+  / FromQuery Identifier
 
 ExistsQuery
-  <- ItemExists Identifier
+  <- InQuery DualIdentifier
+  / ItemExists Identifier
   / RelExists DualIdentifier
-  {
-    p.StmtType = "ExistsQuery"
-  }
 
 StateBound
-  <- CreateOrFetch / CreateOrSet
-  {
-    p.StmtType = "StateBound"
-  }
+  <- CreateOrFetch  { p.InputAttributes.Verb = "create-or-fetch" }
+  / CreateOrSet     { p.InputAttributes.Verb = "create-or-set" }
 
 CreateOrFetch
   <- Item Identifier !ItemParams / Rel DualIdentifier !RelParams
@@ -67,110 +70,108 @@ CreateOrSet
   <- Item Identifier ItemParams / Rel DualIdentifier RelParams
 
 Object
-  <- WorldObject / ItemObject / RelObject / IdsList
+  <- WorldObject / ItemObject / RelObject / IdentifierList
 
-WorldObject
-  # This is laziness - I'm planning to just use JSON here...
-  <- '$$' WORLD .* ENDWORLD '$$'
-
-ItemObject
-  <- Item Identifier ItemParams?
-
-RelObject
-  <- Rel DualIdentifier RelParams?
-
-IdsList
-  <- IDS (StringLike)* _
-
-DualIdentifier
-  <- Identifier Identifier
-
-Identifier
-  <- !(Keyword) StringLike
-
-ItemParams
-  <- (ItemParam)+
-
-RelParams
-  <- (RelParam)+
-
-ItemParam
-  <- EXTERNAL EQUALS Boolean
-  / TYPE EQUALS ItemType
-  / NAME EQUALS StringLike
-  / MECHANISM EQUALS StringLike
-  / EXPANDED EQUALS StringLike
-
-RelParam
-  <- VERB EQUALS StringLike
-  / MECHANISM EQUALS StringLike
-  / ASYNC EQUALS Boolean
-  / EXPANDED EQUALS StringLike
-
-ItemKeys
-    <- (ItemKey)+
-
-RelKeys
-    <- (RelKey)+
-
-ItemKey
-    <- (NAME / TYPE / EXTERNAL / MECHANISM / EXPANDED) _
-
-RelKey
-    <- (VERB / MECHANISM / ASYNC / EXPANDED) _
+WorldObject <- BeginWorld <.*> EndWorld         { p.Response.Object.Repr = cleanString(text) }
+ItemObject  <- <Item Identifier ItemParams?>    { p.Response.Object.Repr = cleanString(text) }
+RelObject   <- <Rel DualIdentifier RelParams?>  { p.Response.Object.Repr = cleanString(text) }
 
 Error
-  <- ERROR Number? StringLike*
+  <- <ERROR Number? StringLike*>
+  {
+    p.Response.Error.Message = cleanString(text)
+    if p.number != 0 {
+      p.Response.Error.Code = p.number
+    }
+  }
 
-StringLike
-  <- (Text / QuotedText) _
+Limit <- <Number> { p.InputAttributes.Params["limit"] = cleanString(text) }
 
-Boolean
-  <- TRUE / FALSE
+Identifier
+  <- !Keyword <StringLike>
+  { p.InputAttributes.ResourceId = cleanString(text) }
 
-Text
-  <- [a-zA-Z0-9-_]+
+SecondIdentifier
+  <- !Keyword &Identifier <StringLike>
+  {
+    p.InputAttributes.SecondaryIds = append(p.InputAttributes.SecondaryIds, cleanString(text))
+  }
 
-QuotedText
- <- QUOTE [a-zA-Z0-9-_.,!@#$%^&*()\[\]+=~;: ]* QUOTE
+DualIdentifier
+  <- Identifier SecondIdentifier
 
-ItemsList
-    <- Item LIST Number?
+IdentifierList
+  <- <Identifier Identifier*>
+  {
+    p.InputAttributes.ResourceId = ""
+    ids := strings.Fields(text)
+    for _, id := range ids {
+      p.InputAttributes.ResourceIds = append(p.InputAttributes.ResourceIds, cleanString(id))
+    }
+  }
 
-RelsList
-    <- Rel LIST Number?
+ItemParams  <- (ItemParam)+
+RelParams   <- (RelParam)+
 
-Number
-  <- [0-9]+ _
+ItemParam
+  <- EXTERNAL EQUALS <Boolean>      { p.Params["external"] = cleanString(text) }
+  / TYPE EQUALS <ItemType>          { p.Params["type"] = cleanString(text) }
+  / NAME EQUALS <StringLike>        { p.Params["name"] = cleanString(text) }
+  / MECHANISM EQUALS <StringLike>   { p.Params["mechanism"] = cleanString(text) }
+  / EXPANDED EQUALS <StringLike>    { p.Params["expanded"] = cleanString(text) }
+
+RelParam
+  <- VERB EQUALS <StringLike>       { p.Params["verb"] = cleanString(text) }
+  / MECHANISM EQUALS <StringLike>   { p.Params["mechanism"] = cleanString(text) }
+  / ASYNC EQUALS <Boolean>          { p.Params["async"] = cleanString(text) }
+  / EXPANDED EQUALS <StringLike>    { p.Params["expanded"] = cleanString(text) }
+
+ItemKeys    <- (ItemKey)+
+RelKeys     <- (RelKey)+
+
+# Useful to store these for "clear" commands.
+ItemKey     <- (<NAME / TYPE / EXTERNAL / MECHANISM / EXPANDED>) _  { p.InputAttributes.Params[cleanString(text)] = "" }
+RelKey      <- (<VERB / MECHANISM / ASYNC / EXPANDED>) _              { p.InputAttributes.Params[cleanString(text)] = "" }
+
+StringLike  <- < (Text / QuotedText) > _    { p.text = cleanString(text) }
+Number      <- < [0-9]+ > _                 { n, _ := strconv.Atoi(text); p.number = n }
+Boolean     <- <TRUE / FALSE>               { p.bool = text == "true" }
+Text        <- [a-zA-Z0-9-_]+
+QuotedText  <- QUOTE [a-zA-Z0-9-_.,!@#$%^&*()\[\]+=~;: ]* QUOTE
+
+ItemExists  <- (ITEM_EXISTS / Item Exists)  { p.InputAttributes.ResourceType = "item"; p.InputAttributes.Verb = "exists" }
+RelExists   <- (REL_EXISTS / Rel Exists)    { p.InputAttributes.ResourceType = "rel"; p.InputAttributes.Verb = "exists" }
+
+World   <- WORLD    { p.InputAttributes.ResourceType = "world" }
+Item    <- ITEM     { p.InputAttributes.ResourceType = "item" }
+Rel     <- REL      { p.InputAttributes.ResourceType = "rel" }
+
+Create      <- CREATE       { p.InputAttributes.Verb = "create" }
+Fetch       <- FETCH        { p.InputAttributes.Verb = "fetch" }
+Set         <- SET          { p.InputAttributes.Verb = "set" }
+Clear       <- CLEAR        { p.InputAttributes.Verb = "clear" }
+Delete      <- DELETE       { p.InputAttributes.Verb = "delete" }
+List        <- LIST         { p.InputAttributes.Verb = "list" }
+Nest        <- NEST         { p.InputAttributes.Verb = "nest"; p.InputAttributes.ResourceType = "item" }
+Free        <- FREE         { p.InputAttributes.Verb = "free"; p.InputAttributes.ResourceType = "item" }
+InQuery     <- IN_QUERY     { p.InputAttributes.Verb = "in?"; p.InputAttributes.ResourceType = "item" }
+FromQuery   <- FROM_QUERY   { p.InputAttributes.Verb = "from?"; p.InputAttributes.ResourceType = "rel" }
+ToQuery     <- TO_QUERY     { p.InputAttributes.Verb = "to?"; p.InputAttributes.ResourceType = "rel" }
+Exists      <- EXISTS       { p.InputAttributes.Verb = "exists"; p.InputAttributes.ResourceType = "rel" }
+
+Flag            <- StrictFlag / VerboseFlag / IdsFlag
+StrictFlag      <- FLAG STRICT  { p.InputAttributes.Flags = append(p.InputAttributes.Flags, "strict") }
+VerboseFlag     <- FLAG VERBOSE { p.InputAttributes.Flags = append(p.InputAttributes.Flags, "verbose") }
+IdsFlag         <- FLAG IDS     { p.InputAttributes.Flags = append(p.InputAttributes.Flags, "ids") }
+
+BeginWorld  <- DELIMITER WORLD
+EndWorld    <- ENDWORLD DELIMITER
 
 ItemType
   <- PERSON / DATABASE / QUEUE / BLOBSTORE / BROWSER / MOBILE / SERVER / DEVICE / CODE
 
-ItemExists
-  <- ITEM_EXISTS / Item EXISTS
-
-RelExists
-  <- REL_EXISTS / Rel EXISTS
-
-Item
-  <- ITEM
-
-Rel
-  <- REL
-
-Flag <- StrictFlag / VerboseFlag / IdsFlag
-
-StrictFlag
-  <- FLAG STRICT
-
-VerboseFlag
-  <- FLAG VERBOSE
-
-IdsFlag
-  <- FLAG IDS
-
 Keyword
-  <- ITEM / ITEM_EXISTS / REL / REL_EXISTS / FROM_QUERY / TO_QUERY / IN / IN_QUERY / CREATE / DELETE / SET / CLEAR / FETCH / EXISTS / FREE / NEST / FLAG
+  <- WORLD / ENDWORLD / ITEM / ITEM_EXISTS / REL / REL_EXISTS / FROM_QUERY / TO_QUERY / IN / IN_QUERY / CREATE / DELETE / SET / CLEAR / FETCH / LIST / EXISTS / FREE / NEST / FLAG / DELIMITER
 
 WORLD       <- 'world' _
 ENDWORLD    <- 'endworld' _
@@ -213,10 +214,11 @@ SERVER      <- 'server' _
 DEVICE      <- 'device' _
 CODE        <- 'code' _
 
+DELIMITER   <- '$$'
 QUOTE       <- '"'
 EQUALS      <- '='
 
-FLAG       <- '-' / '--'
+FLAG       <- '-' '-'?
 STRICT     <- 'strict' _
 VERBOSE    <- 'verbose' _
 IDS        <- 'ids' _
