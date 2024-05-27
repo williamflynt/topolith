@@ -6,6 +6,7 @@ import (
 	"github.com/williamflynt/topolith/pkg/errors"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 const currentVersion = 1
@@ -25,6 +26,8 @@ type Operations interface {
 	ItemFetch(id string) (Item, bool)                      // ItemFetch fetches an Item from the World. Returns an "okay" boolean, which is true only if the Item exists.
 	ItemList(limit int) []Item                             // ItemList returns a list of Items in the World, up to the given limit. A 0 indicates no limit.
 	ItemSet(id string, params ItemParams) WorldWithItem    // ItemSet sets the not-nil attributes from ItemParams on Item that has the given ID.
+	ItemParent(id string) (Item, bool)                     // ItemParent returns the ID of the parent Item of the given child Item. An empty Item is returned if the child Item has no parent. The okay boolean is false if the childId isn't found.
+	ItemComponents(id string) ([]Item, bool)               // ItemComponents returns the IDs of the child Items of the given parent Item. An empty slice is returned if the parent Item has no children. The okay boolean is false if the parent Item isn't found.
 
 	RelCreate(fromId, toId string, params RelParams) WorldWithRel // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
 	RelDelete(fromId, toId string) World                          // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
@@ -36,7 +39,7 @@ type Operations interface {
 	Parent(childId string) (string, bool)          // Parent returns the ID of the parent Item of the given child Item. An empty string is returned if the child Item has no parent. The okay boolean is false if the childId isn't found.
 	Components(childId string) ([]string, bool)    // Components returns the IDs of the child Items of the given parent Item. An empty slice is returned if the parent Item has no children. The okay boolean is false if the parent Item isn't found.
 	Nest(childId, parentId string) WorldWithItem   // Nest nests a child Item under a parent Item. If the parent doesn't exist, noop.
-	Free(childId string) WorldWithItem
+	Free(childId string) WorldWithItem             // Free removes an Item from its parent to the root. If the Item doesn't exist, noop.
 
 	Err() error // Err returns an error if the last operation failed, or nil if it succeeded.
 }
@@ -99,11 +102,15 @@ func CreateWorld(name string) World {
 }
 
 func (w *world) String() string {
-	bytes, err := json.Marshal(w)
-	if err != nil {
-		return "error Error marshalling World to JSON"
+	treeString := w.Tree.String()
+	allRels := make([]string, 0)
+	for _, rel := range w.Rels {
+		allRels = append(allRels, rel.String())
 	}
-	return string(bytes)
+	return fmt.Sprintf("$$world\n%s\n%s\nendworld$$",
+		treeString,
+		strings.Join(allRels, "\n"),
+	)
 }
 
 func (w *world) Version() int {
@@ -213,6 +220,30 @@ func (w *world) ItemSet(id string, params ItemParams) WorldWithItem {
 	w.Items[id] = item
 	w.latestItem = &item
 	return w
+}
+
+func (w *world) ItemParent(childId string) (Item, bool) {
+	w.resetLatestTrackers()
+	tree, ok := w.Tree.Find(childId)
+	if !ok {
+		return Item{}, false
+	}
+	parent := tree.Parent().Item()
+	return parent, true
+}
+
+func (w *world) ItemComponents(parentId string) ([]Item, bool) {
+	w.resetLatestTrackers()
+	tree, ok := w.Tree.Find(parentId)
+	if !ok {
+		return []Item{}, false
+	}
+	components := tree.Components().ToSlice()
+	items := make([]Item, len(components))
+	for i, c := range components {
+		items[i] = c.Item()
+	}
+	return items, true
 }
 
 func (w *world) RelCreate(fromId, toId string, params RelParams) WorldWithRel {

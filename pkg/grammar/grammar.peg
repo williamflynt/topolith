@@ -23,6 +23,7 @@ Command
   <- _ (Mutation / TreeMutation / Query / StateBound) Flag* END
   {
     p.StmtType = "Command"
+    p.InputAttributes.Raw = p.Buffer
   }
 
 Mutation
@@ -70,7 +71,7 @@ CreateOrSet
   <- Item Identifier ItemParams / Rel DualIdentifier RelParams
 
 Object
-  <- WorldObject / ItemObject / RelObject / IdentifierList
+  <- WorldObject / ItemObject+ / RelObject+ / IdentifierList
 
 WorldObject <- BeginWorld <.*> EndWorld         { p.Response.Object.Repr = cleanString(text) }
 ItemObject  <- <Item Identifier ItemParams?>    { p.Response.Object.Repr = cleanString(text) }
@@ -154,7 +155,7 @@ Delete      <- DELETE       { p.InputAttributes.Verb = "delete" }
 List        <- LIST         { p.InputAttributes.Verb = "list" }
 Nest        <- NEST         { p.InputAttributes.Verb = "nest"; p.InputAttributes.ResourceType = "item" }
 Free        <- FREE         { p.InputAttributes.Verb = "free"; p.InputAttributes.ResourceType = "item" }
-Exists      <- EXISTS       { p.InputAttributes.Verb = "exists"; p.InputAttributes.ResourceType = "rel" }
+Exists      <- EXISTS       { p.InputAttributes.Verb = "exists" }
 InQuery     <- IN_QUERY     { p.InputAttributes.Verb = "in?"; p.InputAttributes.ResourceType = "item" }
 FromQuery   <- FROM_QUERY   { p.InputAttributes.Verb = "from?"; p.InputAttributes.ResourceType = "rel" }
 ToQuery     <- TO_QUERY     { p.InputAttributes.Verb = "to?"; p.InputAttributes.ResourceType = "rel" }

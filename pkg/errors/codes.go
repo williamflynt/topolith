@@ -6,6 +6,7 @@ const (
 	TopolithErrorNotFound                       = 404
 	TopolithErrorConflict                       = 409
 	TopolithErrorBadSyncState                   = 502
+	TopolithErrorMultiple                       = 600
 )
 
 var topolithErrorDescriptions = map[TopolithErrorCode]string{
@@ -14,4 +15,5 @@ var topolithErrorDescriptions = map[TopolithErrorCode]string{
 	TopolithErrorNotFound:     "Not found",
 	TopolithErrorConflict:     "Conflict or impossible state",
 	TopolithErrorBadSyncState: "Issue with World state sync detected",
+	TopolithErrorMultiple:     "Multiple errors",
 }

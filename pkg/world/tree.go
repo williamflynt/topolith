@@ -1,6 +1,7 @@
 package world
 
 import (
+	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/williamflynt/topolith/pkg/errors"
 )
@@ -20,6 +21,7 @@ type Tree interface {
 	Parent() Tree                        // Parent returns the parent of this Tree. An empty Tree is returned if this Tree has no parent.
 	Root() Tree                          // Root returns the root of this Tree.
 	Empty() bool                         // Empty returns whether this Tree has no Item and no Components.
+	fmt.Stringer
 }
 
 // tree implements Tree.
@@ -27,6 +29,24 @@ type tree struct {
 	item       *Item
 	components mapset.Set[Tree]
 	parent     *tree
+}
+
+// TODO Deserialize Tree from this format.
+func (t *tree) String() string {
+	treeString := "tree{"
+
+	if t.item != nil {
+		treeString += t.item.String()
+	} else {
+		treeString += "nil"
+	}
+
+	treeString += "["
+	for _, c := range t.components.ToSlice() {
+		treeString += c.String() + " "
+	}
+	treeString += "]}"
+	return fmt.Sprintf(`tree "%s"`, t.item.Id)
 }
 
 func (t *tree) AddOrMove(item *Item) error {

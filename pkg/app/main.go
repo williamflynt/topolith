@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/grammar"
+	"github.com/williamflynt/topolith/pkg/persistance"
 	"github.com/williamflynt/topolith/pkg/world"
 )
 
 type App interface {
-	World() world.World   // World returns the world.World associated with this App.
-	Exec(s string) string // Exec parses the given string to a valid Command and executes it. Return a string response in accordance with our grammar.
-	History() []Command   // History returns the list of Command that have been executed for the present state of the world.World.
-	CanUndo() bool        // CanUndo indicates whether more Command objects exist to Undo.
-	CanRedo() bool        // CanRedo indicates whether more Command objects exist to Redo.
+	World() world.World                   // World returns the world.World associated with this App.
+	Exec(s string) string                 // Exec parses the given string to a valid Command and executes it. Return a string response in accordance with our grammar.
+	History() []Command                   // History returns the list of Command that have been executed for the present state of the world.World.
+	CanUndo() bool                        // CanUndo indicates whether more Command objects exist to Undo.
+	CanRedo() bool                        // CanRedo indicates whether more Command objects exist to Redo.
+	Persistence() persistance.Persistence // Persistence returns the persistance.Persistence object associated with this App.
 }
 
 func NewApp(world world.World) (App, error) {
@@ -23,6 +25,7 @@ func NewApp(world world.World) (App, error) {
 		world:       world,
 		commands:    make([]Command, 0),
 		commandsIdx: -1,
+		persistance: persistance.NewFilePersistence(),
 	}, nil
 }
 
@@ -31,6 +34,7 @@ type app struct {
 	world       world.World // world is the world.World associated with this App.
 	commands    []Command   // commands is a list of Command that have been executed.
 	commandsIdx int         // commandsIdx is the index of the last executed Command in the commands list. It must initialize to -1.
+	persistance persistance.Persistence
 }
 
 func (h *app) World() world.World {
@@ -39,7 +43,7 @@ func (h *app) World() world.World {
 
 func (h *app) Exec(s string) string {
 	p, err := grammar.Parse(s)
-	if err != nil {
+	if err != nil || p.StmtType != "Command" {
 		p.PrintSyntaxTree()
 		return "\nerror 400 " + err.Error()
 	}
@@ -66,6 +70,10 @@ func (h *app) CanUndo() bool {
 
 func (h *app) CanRedo() bool {
 	return h.commandsIdx < len(h.commands)-1
+}
+
+func (h *app) Persistence() persistance.Persistence {
+	return h.persistance
 }
 
 // --- INTERNAL ---

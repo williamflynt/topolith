@@ -82,3 +82,9 @@ func (e TopolithError) Unwrap() error {
 	}
 	return e.errs[0]
 }
+
+func Join(errs ...error) TopolithError {
+	joined := New("multiple errors").UseCode(TopolithErrorMultiple)
+	joined.errs = errs
+	return joined
+}

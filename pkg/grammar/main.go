@@ -16,6 +16,8 @@ type InputAttributes struct {
 	Verb         string            `json:"verb"`
 	Params       map[string]string `json:"params"`
 	Flags        []string          `json:"flags"`
+
+	Raw string `json:"raw"`
 }
 
 // Response is a struct that holds the response from our grammar.
