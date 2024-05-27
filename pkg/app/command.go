@@ -6,6 +6,7 @@ import (
 	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/grammar"
 	"github.com/williamflynt/topolith/pkg/world"
+	"strconv"
 	"strings"
 )
 
@@ -62,8 +63,9 @@ const (
 type CommandTarget string
 
 const (
-	ItemTarget CommandTarget = "item"
-	RelTarget  CommandTarget = "rel"
+	WorldTarget CommandTarget = "world"
+	ItemTarget  CommandTarget = "item"
+	RelTarget   CommandTarget = "rel"
 )
 
 // StringerList is a helper type to allow for a list of fmt.Stringer to be joined into a single string.
@@ -97,6 +99,23 @@ func (c *CommandBase) String() string {
 }
 
 // --- COMMAND IMPLEMENTATIONS ---
+
+// WorldFetchCommand represents a fetch command for the whole World.
+type WorldFetchCommand struct {
+	InputAttributes grammar.InputAttributes
+}
+
+func (c *WorldFetchCommand) Execute(w world.World) (fmt.Stringer, error) {
+	return w, nil
+}
+
+func (c *WorldFetchCommand) Undo(w world.World) error {
+	return nil
+}
+
+func (c *WorldFetchCommand) String() string {
+	return c.InputAttributes.Raw
+}
 
 /* Item Commands */
 
@@ -677,7 +696,10 @@ func InputToCommand(input grammar.InputAttributes) (Command, error) {
 	for _, flag := range input.Flags {
 		base.Flags.Add(CommandFlag(flag))
 	}
+
 	switch base.ResourceType {
+	case WorldTarget:
+		return &WorldFetchCommand{InputAttributes: input}, nil
 	case ItemTarget:
 		return itemCommand(base, input)
 	case RelTarget:
@@ -704,7 +726,7 @@ func itemCommand(base CommandBase, input grammar.InputAttributes) (Command, erro
 	case Fetch:
 		return &ItemFetchCommand{CommandBase: base}, nil
 	case List:
-		return &ItemListCommand{CommandBase: base}, nil
+		return &ItemListCommand{CommandBase: base, Limit: limitFromInput(input)}, nil
 	case Set:
 		return &ItemSetCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
 	case Clear:
@@ -735,7 +757,7 @@ func relCommand(base CommandBase, input grammar.InputAttributes) (Command, error
 	case Fetch:
 		return &RelFetchCommand{CommandBase: base, ToId: input.SecondaryIds[0]}, nil
 	case List:
-		return &RelListCommand{CommandBase: base}, nil
+		return &RelListCommand{CommandBase: base, Limit: limitFromInput(input)}, nil
 	case Set:
 		return &RelSetCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
 	case Clear:
@@ -792,4 +814,16 @@ func relParamsFromInput(input grammar.InputAttributes) world.RelParams {
 		params.Expanded = strPtr(v)
 	}
 	return params
+}
+
+func limitFromInput(input grammar.InputAttributes) int {
+	v, ok := input.Params["limit"]
+	if !ok {
+		return 0
+	}
+	x, err := strconv.Atoi(v)
+	if err != nil {
+		return 0
+	}
+	return x
 }
