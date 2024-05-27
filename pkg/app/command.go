@@ -402,6 +402,22 @@ func (c *ItemComponentsListCommand) Undo(w world.World) error {
 	return nil
 }
 
+// ItemInQueryCommand represents an in-query command for Item.
+type ItemInQueryCommand struct {
+	CommandBase
+	ParentId string
+}
+
+func (c *ItemInQueryCommand) Execute(w world.World) (fmt.Stringer, error) {
+	strict := c.Flags.Contains(Strict)
+	isInThere := w.In(c.Id, c.ParentId, strict)
+	return BoolStringer(isInThere), nil
+}
+
+func (c *ItemInQueryCommand) Undo(w world.World) error {
+	return nil
+}
+
 /* Rel Commands */
 
 // RelCreateCommand represents a create command for Rel.
@@ -651,7 +667,25 @@ func (c *RelDeleteCommand) Undo(w world.World) error {
 // --- EXPORTED FUNCTIONS ---
 
 // InputToCommand converts a grammar.InputAttributes to a Command.
-func InputToCommand(input grammar.InputAttributes) (Command, error) {}
+func InputToCommand(input grammar.InputAttributes) (Command, error) {
+	base := CommandBase{
+		InputAttributes: input,
+		ResourceType:    CommandTarget(input.ResourceType),
+		Id:              input.ResourceId,
+		Flags:           mapset.NewSet[CommandFlag](),
+	}
+	for _, flag := range input.Flags {
+		base.Flags.Add(CommandFlag(flag))
+	}
+	switch base.ResourceType {
+	case ItemTarget:
+		return itemCommand(base, input)
+	case RelTarget:
+		return relCommand(base, input)
+	default:
+		return nil, errors.New("invalid resource type").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "resourceType", Value: input.ResourceType})
+	}
+}
 
 // --- INTERNAL FUNCTIONS ---
 
@@ -661,4 +695,101 @@ func strPtr(s string) *string {
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+func itemCommand(base CommandBase, input grammar.InputAttributes) (Command, error) {
+	switch CommandVerb(input.Verb) {
+	case Create:
+		return &ItemCreateCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
+	case Fetch:
+		return &ItemFetchCommand{CommandBase: base}, nil
+	case List:
+		return &ItemListCommand{CommandBase: base}, nil
+	case Set:
+		return &ItemSetCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
+	case Clear:
+		return &ItemClearCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
+	case Delete:
+		return &ItemDeleteCommand{CommandBase: base}, nil
+	case Nest:
+		return &ItemNestCommand{CommandBase: base, Ids: input.ResourceIds, ParentId: input.SecondaryIds[0], oldParentIds: make(map[string]string), noNest: make(map[string]bool)}, nil
+	case Free:
+		return &ItemFreeCommand{CommandBase: base, Ids: input.ResourceIds, oldParentIds: make(map[string]string)}, nil
+	case Exists:
+		return &ItemExistsCommand{CommandBase: base}, nil
+	case InQuery:
+		return &ItemInQueryCommand{CommandBase: base, ParentId: input.SecondaryIds[0]}, nil
+	case CreateOrFetch:
+		return &ItemCreateOrFetchCommand{CommandBase: base}, nil
+	case CreateOrSet:
+		return &ItemCreateOrSetCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
+	default:
+		return nil, errors.New("invalid verb").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "verb", Value: input.Verb}, errors.KvPair{Key: "resourceType", Value: input.ResourceType})
+	}
+}
+
+func relCommand(base CommandBase, input grammar.InputAttributes) (Command, error) {
+	switch CommandVerb(input.Verb) {
+	case Create:
+		return &RelCreateCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
+	case Fetch:
+		return &RelFetchCommand{CommandBase: base, ToId: input.SecondaryIds[0]}, nil
+	case List:
+		return &RelListCommand{CommandBase: base}, nil
+	case Set:
+		return &RelSetCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
+	case Clear:
+		return &RelClearCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
+	case Delete:
+		return &RelDeleteCommand{CommandBase: base, ToId: input.SecondaryIds[0]}, nil
+	case Exists:
+		return &RelExistsCommand{CommandBase: base, ToId: input.SecondaryIds[0]}, nil
+	case ToQuery:
+		return &RelToQueryCommand{CommandBase: base}, nil
+	case FromQuery:
+		return &RelFromQueryCommand{CommandBase: base}, nil
+	case CreateOrFetch:
+		return &RelCreateOrFetchCommand{CommandBase: base, ToId: input.SecondaryIds[0]}, nil
+	case CreateOrSet:
+		return &RelCreateOrSetCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
+	default:
+		return nil, errors.New("invalid verb").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "verb", Value: input.Verb}, errors.KvPair{Key: "resourceType", Value: input.ResourceType})
+	}
+}
+
+func itemParamsFromInput(input grammar.InputAttributes) world.ItemParams {
+	params := world.ItemParams{}
+	if v, ok := input.Params["external"]; ok {
+		params.External = boolPtr(v == "true")
+	}
+	if v, ok := input.Params["type"]; ok {
+		params.Type = strPtr(v)
+	}
+	if v, ok := input.Params["name"]; ok {
+		params.Name = strPtr(v)
+	}
+	if v, ok := input.Params["mechanism"]; ok {
+		params.Mechanism = strPtr(v)
+	}
+	if v, ok := input.Params["expanded"]; ok {
+		params.Expanded = strPtr(v)
+	}
+	return params
+}
+
+func relParamsFromInput(input grammar.InputAttributes) world.RelParams {
+	params := world.RelParams{}
+	if v, ok := input.Params["verb"]; ok {
+		params.Verb = strPtr(v)
+	}
+	if v, ok := input.Params["mechanism"]; ok {
+		params.Mechanism = strPtr(v)
+	}
+	if v, ok := input.Params["async"]; ok {
+		params.Async = boolPtr(v == "true")
+	}
+	if v, ok := input.Params["expanded"]; ok {
+		params.Expanded = strPtr(v)
+	}
+	return params
 }

@@ -50,13 +50,11 @@ ListQuery
   <- (Item / Rel ) List Limit?
   # Get all Items under this one in the Tree.
   / Item IN Identifier  { p.InputAttributes.Verb = "list" }
-  # Get all Rels To or From this Item.
-  / Rel Identifier !Identifier
   / ToQuery Identifier
   / FromQuery Identifier
 
 ExistsQuery
-  <- InQuery DualIdentifier
+  <- InQuery DualIdentifier   # Does this Item exist under the other?
   / ItemExists Identifier
   / RelExists DualIdentifier
 

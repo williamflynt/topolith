@@ -29,8 +29,6 @@ var testCommands = []struct {
 	{In: "nest abc123 def456 in ghi789", Err: false, Out: InputAttributes{ResourceType: "item", ResourceId: "", ResourceIds: []string{"abc123", "def456"}, SecondaryIds: []string{"ghi789"}, Verb: "nest", Params: map[string]string{}, Flags: []string{}}},
 	{In: "item fetch abc123", Err: false, Out: InputAttributes{ResourceType: "item", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "fetch", Params: map[string]string{}, Flags: []string{}}},
 	{In: "rel fetch abc123 def456", Err: false, Out: InputAttributes{ResourceType: "rel", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{"def456"}, Verb: "fetch", Params: map[string]string{}, Flags: []string{}}},
-	{In: "rel abc123", Err: false, Out: InputAttributes{ResourceType: "rel", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "", Params: map[string]string{}, Flags: []string{}}},
-	{In: "rels abc123", Err: false, Out: InputAttributes{ResourceType: "rel", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "", Params: map[string]string{}, Flags: []string{}}},
 	{In: "item in abc123", Err: false, Out: InputAttributes{ResourceType: "item", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "list", Params: map[string]string{}, Flags: []string{}}},
 	{In: "items in abc123", Err: false, Out: InputAttributes{ResourceType: "item", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "list", Params: map[string]string{}, Flags: []string{}}},
 	{In: "world", Err: false, Out: InputAttributes{ResourceType: "world", ResourceId: "", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "fetch", Params: map[string]string{}, Flags: []string{}}},
@@ -54,6 +52,18 @@ func TestCommands(t *testing.T) {
 		t.Run(c.In, func(t *testing.T) {
 			p, err := Parse(c.In)
 
+			// All commands should have a non-empty values for resource and verb (aka action type).
+			if p.InputAttributes.ResourceType == "" {
+				t.Errorf("expected InputAttributes.ResourceType, but got ''")
+			}
+			if p.InputAttributes.Verb == "" {
+				t.Errorf("expected InputAttributes.Verb, but got ''")
+			}
+			if p.InputAttributes.Raw != c.In {
+				t.Errorf("expected InputAttributes.Raw to equal the input text")
+			}
+
+			// Checking specific output.
 			if p.InputAttributes.ResourceType != c.Out.ResourceType {
 				t.Errorf("expected resource type: '%s', but got: '%s'", c.Out.ResourceType, p.InputAttributes.ResourceType)
 			}
@@ -80,6 +90,7 @@ func TestCommands(t *testing.T) {
 				t.Errorf("expected flags: '%v', but got: '%v'", c.Out.Flags, p.InputAttributes.Flags)
 			}
 
+			// Checking whether we expected to catch an error.
 			if c.Err && err == nil {
 				if err == nil {
 					t.Errorf("expected error for command: '%s', but got none", c.In)

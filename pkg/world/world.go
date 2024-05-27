@@ -26,8 +26,6 @@ type Operations interface {
 	ItemFetch(id string) (Item, bool)                      // ItemFetch fetches an Item from the World. Returns an "okay" boolean, which is true only if the Item exists.
 	ItemList(limit int) []Item                             // ItemList returns a list of Items in the World, up to the given limit. A 0 indicates no limit.
 	ItemSet(id string, params ItemParams) WorldWithItem    // ItemSet sets the not-nil attributes from ItemParams on Item that has the given ID.
-	ItemParent(id string) (Item, bool)                     // ItemParent returns the ID of the parent Item of the given child Item. An empty Item is returned if the child Item has no parent. The okay boolean is false if the childId isn't found.
-	ItemComponents(id string) ([]Item, bool)               // ItemComponents returns the IDs of the child Items of the given parent Item. An empty slice is returned if the parent Item has no children. The okay boolean is false if the parent Item isn't found.
 
 	RelCreate(fromId, toId string, params RelParams) WorldWithRel // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
 	RelDelete(fromId, toId string) World                          // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
@@ -40,6 +38,8 @@ type Operations interface {
 	In(childId, parentId string, strict bool) bool // In checks if a child Item is nested anywhere under a parent Item. If strict is true, it will only return true if the childId and parentId match exactly.
 	Parent(childId string) (string, bool)          // Parent returns the ID of the parent Item of the given child Item. An empty string is returned if the child Item has no parent. The okay boolean is false if the childId isn't found.
 	Components(childId string) ([]string, bool)    // Components returns the IDs of the child Items of the given parent Item. An empty slice is returned if the parent Item has no children. The okay boolean is false if the parent Item isn't found.
+	ItemParent(id string) (Item, bool)             // ItemParent returns the ID of the parent Item of the given child Item. An empty Item is returned if the child Item has no parent. The okay boolean is false if the childId isn't found.
+	ItemComponents(id string) ([]Item, bool)       // ItemComponents returns the IDs of the child Items of the given parent Item. An empty slice is returned if the parent Item has no children. The okay boolean is false if the parent Item isn't found.
 	Nest(childId, parentId string) WorldWithItem   // Nest nests a child Item under a parent Item. If the parent doesn't exist, noop.
 	Free(childId string) WorldWithItem             // Free removes an Item from its parent to the root. If the Item doesn't exist, noop.
 
