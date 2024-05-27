@@ -47,7 +47,7 @@ func (h *app) Exec(s string) string {
 		p.PrintSyntaxTree()
 		return "\nerror 400 " + err.Error()
 	}
-	c, err := inputToCommand(p.InputAttributes)
+	c, err := InputToCommand(p.InputAttributes)
 	if err != nil {
 		return "\nerror 400 " + err.Error()
 

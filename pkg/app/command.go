@@ -373,7 +373,7 @@ func (c *ItemCreateOrSetCommand) Execute(w world.World) (fmt.Stringer, error) {
 		c.oldParams.Type = strPtr(world.StringFromItemType(item.Type))
 		c.oldParams.Mechanism = strPtr(item.Mechanism)
 		c.oldParams.Expanded = strPtr(item.Expanded)
-		w.ItemSet(c.Id, c.Params)
+		return w.ItemSet(c.Id, c.Params).Item()
 	}
 	return w.ItemCreate(c.Id, c.Params).Item()
 }
@@ -423,6 +423,168 @@ func (c *RelCreateCommand) Execute(w world.World) (fmt.Stringer, error) {
 func (c *RelCreateCommand) Undo(w world.World) error {
 	if c.noCreate {
 		return nil
+	}
+	return w.RelDelete(c.Id, c.ToId).Err()
+}
+
+// RelFetchCommand represents a fetch command for Rel.
+type RelFetchCommand struct {
+	CommandBase
+	ToId string
+}
+
+func (c *RelFetchCommand) Execute(w world.World) (fmt.Stringer, error) {
+	strict := c.Flags.Contains(Strict)
+	rels := w.RelFetch(c.Id, c.ToId, strict)
+	if len(rels) == 0 {
+		return world.Rel{}, errors.New("could not find Rel").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
+	}
+	return rels[0], nil
+}
+
+func (c *RelFetchCommand) Undo(w world.World) error {
+	return nil
+}
+
+// RelListCommand represents a list command for Rel.
+type RelListCommand struct {
+	CommandBase
+	Limit int
+}
+
+func (c *RelListCommand) Execute(w world.World) (fmt.Stringer, error) {
+	rels := w.RelList(c.Limit)
+	return StringerList[world.Rel](rels), nil
+}
+
+func (c *RelListCommand) Undo(w world.World) error {
+	return nil
+}
+
+// RelClearCommand represents a clear command for Rel - a modified set command.
+type RelClearCommand struct {
+	CommandBase
+	ToId      string
+	Params    world.RelParams
+	oldParams world.RelParams
+	noSet     bool
+}
+
+func (c *RelClearCommand) Execute(w world.World) (fmt.Stringer, error) {
+	rels := w.RelFetch(c.Id, c.ToId, true)
+	if len(rels) == 0 {
+		c.noSet = true
+		return world.Rel{}, errors.New("could not find Rel").UseCode(errors.TopolithErrorNotFound).WithData(errors.KvPair{Key: "id", Value: c.Id})
+	}
+	rel := rels[0]
+	c.oldParams.Verb = strPtr(rel.Verb)
+	c.oldParams.Mechanism = strPtr(rel.Mechanism)
+	c.oldParams.Async = boolPtr(rel.Async)
+	c.oldParams.Expanded = strPtr(rel.Expanded)
+	return w.RelSet(c.Id, c.ToId, c.Params).Rel()
+}
+
+func (c *RelClearCommand) Undo(w world.World) error {
+	if c.noSet {
+		return nil
+	}
+	return w.RelSet(c.Id, c.ToId, c.oldParams).Err()
+}
+
+// RelExistsCommand represents an exists command for Rel.
+type RelExistsCommand struct {
+	CommandBase
+	ToId string
+}
+
+func (c *RelExistsCommand) Execute(w world.World) (fmt.Stringer, error) {
+	rels := w.RelFetch(c.Id, c.ToId, true)
+	return BoolStringer(len(rels) > 0), nil
+}
+
+func (c *RelExistsCommand) Undo(w world.World) error {
+	return nil
+}
+
+// RelToQueryCommand represents a to-query command for Rel.
+type RelToQueryCommand struct {
+	CommandBase
+}
+
+func (c *RelToQueryCommand) Execute(w world.World) (fmt.Stringer, error) {
+	strict := c.Flags.Contains(Strict)
+	rels := w.RelTo(c.Id, strict)
+	return StringerList[world.Rel](rels), nil
+}
+
+func (c *RelToQueryCommand) Undo(w world.World) error {
+	return nil
+}
+
+// RelFromQueryCommand represents a from-query command for Rel.
+type RelFromQueryCommand struct {
+	CommandBase
+}
+
+func (c *RelFromQueryCommand) Execute(w world.World) (fmt.Stringer, error) {
+	strict := c.Flags.Contains(Strict)
+	rels := w.RelFrom(c.Id, strict)
+	return StringerList[world.Rel](rels), nil
+}
+
+func (c *RelFromQueryCommand) Undo(w world.World) error {
+	return nil
+}
+
+// RelCreateOrFetchCommand represents a create-or-fetch command for Rel.
+type RelCreateOrFetchCommand struct {
+	CommandBase
+	ToId     string
+	noCreate bool
+}
+
+func (c *RelCreateOrFetchCommand) Execute(w world.World) (fmt.Stringer, error) {
+	rels := w.RelFetch(c.Id, c.ToId, true)
+	if len(rels) > 0 {
+		c.noCreate = true
+		return rels[0], nil
+	}
+	return w.RelCreate(c.Id, c.ToId, world.RelParams{}).Rel()
+}
+
+func (c *RelCreateOrFetchCommand) Undo(w world.World) error {
+	if c.noCreate {
+		return nil
+	}
+	return w.RelDelete(c.Id, c.ToId).Err()
+}
+
+// RelCreateOrSetCommand represents a create-or-set command for Rel.
+type RelCreateOrSetCommand struct {
+	CommandBase
+	ToId      string
+	Params    world.RelParams
+	oldParams world.RelParams
+	noCreate  bool
+}
+
+func (c *RelCreateOrSetCommand) Execute(w world.World) (fmt.Stringer, error) {
+	rels := w.RelFetch(c.Id, c.ToId, true)
+	if len(rels) > 0 {
+		c.noCreate = true
+		rel := rels[0]
+		c.oldParams.Verb = strPtr(rel.Verb)
+		c.oldParams.Mechanism = strPtr(rel.Mechanism)
+		c.oldParams.Async = boolPtr(rel.Async)
+		c.oldParams.Expanded = strPtr(rel.Expanded)
+		return w.RelSet(c.Id, c.ToId, c.Params).Rel()
+	}
+	return w.RelCreate(c.Id, c.ToId, c.Params).Rel()
+}
+
+func (c *RelCreateOrSetCommand) Undo(w world.World) error {
+	if c.noCreate {
+		return w.RelSet(c.Id, c.ToId, c.oldParams).Err()
 	}
 	return w.RelDelete(c.Id, c.ToId).Err()
 }
@@ -488,105 +650,10 @@ func (c *RelDeleteCommand) Undo(w world.World) error {
 
 // --- EXPORTED FUNCTIONS ---
 
-func MakeItemCreateCommand(id string, params world.ItemParams) (Command, error) {
-	return &ItemCreateCommand{
-		CommandBase: CommandBase{
-			ResourceType: ItemTarget,
-			Id:           id,
-		},
-		Params: params,
-	}, nil
-}
-
-func MakeItemSetCommand(id string, params world.ItemParams) (Command, error) {
-	return &ItemSetCommand{
-		CommandBase: CommandBase{
-			ResourceType: ItemTarget,
-			Id:           id,
-		},
-		Params:    params,
-		oldParams: world.ItemParams{},
-	}, nil
-}
-
-func MakeItemClearCommand(id string, params world.ItemParams) (Command, error) {
-	return &ItemClearCommand{
-		CommandBase: CommandBase{
-			ResourceType: ItemTarget,
-			Id:           id,
-		},
-		Params:    params,
-		oldParams: world.ItemParams{},
-	}, nil
-}
-
-func MakeItemDeleteCommand(id string) (Command, error) {
-	return &ItemDeleteCommand{
-		CommandBase: CommandBase{
-			ResourceType: ItemTarget,
-			Id:           id,
-		},
-		oldParams: world.ItemParams{},
-	}, nil
-}
-
-func MakeItemFreeCommand(id string) (Command, error) {
-	return &ItemFreeCommand{
-		CommandBase: CommandBase{
-			ResourceType: ItemTarget,
-			Id:           id,
-		},
-	}, nil
-}
-
-func MakeNestCommand(id string, parentId string) (Command, error) {
-	return &ItemNestCommand{
-		CommandBase: CommandBase{
-			ResourceType: ItemTarget,
-			Id:           id,
-		},
-		ParentId: parentId,
-	}, nil
-}
-
-func MakeRelCreateCommand(fromId string, toId string, params world.RelParams) (Command, error) {
-	return &RelCreateCommand{
-		CommandBase: CommandBase{
-			ResourceType: RelTarget,
-			Id:           fromId,
-		},
-		ToId:   toId,
-		Params: params,
-	}, nil
-}
-
-func MakeRelSetCommand(fromId string, toId string, params world.RelParams) (Command, error) {
-	return &RelSetCommand{
-		CommandBase: CommandBase{
-			ResourceType: RelTarget,
-			Id:           fromId,
-		},
-		ToId:      toId,
-		Params:    params,
-		oldParams: world.RelParams{},
-	}, nil
-}
-
-func MakeRelDeleteCommand(fromId string, toId string) (Command, error) {
-	return &RelDeleteCommand{
-		CommandBase: CommandBase{
-			ResourceType: RelTarget,
-			Id:           fromId,
-		},
-		ToId:      toId,
-		oldParams: world.RelParams{},
-	}, nil
-}
+// InputToCommand converts a grammar.InputAttributes to a Command.
+func InputToCommand(input grammar.InputAttributes) (Command, error) {}
 
 // --- INTERNAL FUNCTIONS ---
-
-// inputToCommand converts a grammar.InputAttributes to a Command.
-func inputToCommand(input grammar.InputAttributes) (Command, error) {}
 
 func strPtr(s string) *string {
 	return &s

@@ -32,6 +32,8 @@ type Operations interface {
 	RelCreate(fromId, toId string, params RelParams) WorldWithRel // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
 	RelDelete(fromId, toId string) World                          // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
 	RelFetch(fromId, toId string, strict bool) []Rel              // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
+	RelTo(toId string, strict bool) []Rel                         // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
+	RelFrom(fromId string, strict bool) []Rel                     // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
 	RelList(limit int) []Rel                                      // RelList returns a list of Rels in the World, up to the given limit. A 0 indicates no limit.
 	RelSet(fromId, toId string, params RelParams) WorldWithRel    // RelSet sets the not-nil attributes from RelParams on Rel that has the given fromId and toId.
 
@@ -299,6 +301,34 @@ func (w *world) RelFetch(fromId, toId string, strict bool) []Rel {
 	rightIds := append(w.Tree.GetDescendantIds(toId), toId)
 	for _, rel := range w.Rels {
 		if slices.Contains(leftIds, rel.From.Id) && slices.Contains(rightIds, rel.To.Id) {
+			rels = append(rels, rel)
+		}
+	}
+	return rels
+}
+
+func (w *world) RelTo(toId string, strict bool) []Rel {
+	rels := make([]Rel, 0)
+	rightIds := []string{toId}
+	if strict {
+		rightIds = append(w.Tree.GetDescendantIds(toId), toId)
+	}
+	for _, rel := range w.Rels {
+		if slices.Contains(rightIds, rel.To.Id) {
+			rels = append(rels, rel)
+		}
+	}
+	return rels
+}
+
+func (w *world) RelFrom(fromId string, strict bool) []Rel {
+	rels := make([]Rel, 0)
+	leftIds := []string{fromId}
+	if strict {
+		leftIds = append(w.Tree.GetDescendantIds(fromId), fromId)
+	}
+	for k, rel := range w.Rels {
+		if slices.Contains(leftIds, k) {
 			rels = append(rels, rel)
 		}
 	}
