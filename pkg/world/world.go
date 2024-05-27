@@ -23,11 +23,13 @@ type Operations interface {
 	ItemCreate(id string, params ItemParams) WorldWithItem // ItemCreate creates a new Item in the World, or retrieves it if already exists.
 	ItemDelete(id string) World                            // ItemDelete deletes an Item from the World. If the item doesn't exist, noop.
 	ItemFetch(id string) (Item, bool)                      // ItemFetch fetches an Item from the World. Returns an "okay" boolean, which is true only if the Item exists.
+	ItemList(limit int) []Item                             // ItemList returns a list of Items in the World, up to the given limit. A 0 indicates no limit.
 	ItemSet(id string, params ItemParams) WorldWithItem    // ItemSet sets the not-nil attributes from ItemParams on Item that has the given ID.
 
 	RelCreate(fromId, toId string, params RelParams) WorldWithRel // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
 	RelDelete(fromId, toId string) World                          // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
 	RelFetch(fromId, toId string, strict bool) []Rel              // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
+	RelList(limit int) []Rel                                      // RelList returns a list of Rels in the World, up to the given limit. A 0 indicates no limit.
 	RelSet(fromId, toId string, params RelParams) WorldWithRel    // RelSet sets the not-nil attributes from RelParams on Rel that has the given fromId and toId.
 
 	In(childId, parentId string, strict bool) bool // In checks if a child Item is nested anywhere under a parent Item. If strict is true, it will only return true if the childId and parentId match exactly.
@@ -168,6 +170,17 @@ func (w *world) ItemFetch(id string) (Item, bool) {
 	return item, ok
 }
 
+func (w *world) ItemList(limit int) []Item {
+	items := make([]Item, 0)
+	for _, item := range w.Items {
+		if limit > 0 && len(items) >= limit {
+			break
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
 func (w *world) ItemSet(id string, params ItemParams) WorldWithItem {
 	w.resetLatestTrackers()
 	item, ok := w.Items[id]
@@ -257,6 +270,17 @@ func (w *world) RelFetch(fromId, toId string, strict bool) []Rel {
 		if slices.Contains(leftIds, rel.From.Id) && slices.Contains(rightIds, rel.To.Id) {
 			rels = append(rels, rel)
 		}
+	}
+	return rels
+}
+
+func (w *world) RelList(limit int) []Rel {
+	rels := make([]Rel, 0)
+	for _, rel := range w.Rels {
+		if limit > 0 && len(rels) >= limit {
+			break
+		}
+		rels = append(rels, rel)
 	}
 	return rels
 }
