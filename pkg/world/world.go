@@ -30,8 +30,8 @@ type Operations interface {
 	RelCreate(fromId, toId string, params RelParams) WorldWithRel // RelCreate creates a new Rel in the World, or retrieves it if already exists. Returns the empty Rel if either Item doesn't exist.
 	RelDelete(fromId, toId string) World                          // RelDelete deletes a Rel from the World. If the Rel doesn't exist, noop.
 	RelFetch(fromId, toId string, strict bool) []Rel              // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
-	RelTo(toId string, strict bool) []Rel                         // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
-	RelFrom(fromId string, strict bool) []Rel                     // RelFetch fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
+	RelTo(toId string, strict bool) []Rel                         // RelTo fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
+	RelFrom(fromId string, strict bool) []Rel                     // RelFrom fetches a Rel from the World. It will traverse the internal World Tree to find the first Rel that matches the fromId OR any descendent of the associated Item, and the toId or any descendent of the associated Item. If strict is true, it will only return the Rel if the fromId and toId match exactly.
 	RelList(limit int) []Rel                                      // RelList returns a list of Rels in the World, up to the given limit. A 0 indicates no limit.
 	RelSet(fromId, toId string, params RelParams) WorldWithRel    // RelSet sets the not-nil attributes from RelParams on Rel that has the given fromId and toId.
 
@@ -294,7 +294,11 @@ func (w *world) RelDelete(fromId, toId string) World {
 func (w *world) RelFetch(fromId, toId string, strict bool) []Rel {
 	w.resetLatestTrackers()
 	if strict {
-		return []Rel{w.Rels[relIdFromIds(fromId, toId)]}
+		rel, ok := w.Rels[relIdFromIds(fromId, toId)]
+		if ok {
+			return []Rel{rel}
+		}
+		return []Rel{}
 	}
 	rels := make([]Rel, 0)
 	leftIds := append(w.Tree.GetDescendantIds(fromId), fromId)

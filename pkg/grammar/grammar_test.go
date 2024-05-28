@@ -10,6 +10,8 @@ import (
 // TODO(wf 27 May 2024): More robust testing for commands.
 // TODO(wf 27 May 2024): Test responses, errors, World representation and parsing.
 
+var simpleWorld = "tree{nil::[tree{item \"2\" external=false::[tree{item \"1\" external=false::[]}]} tree{item \"3\" external=false::[]}]}\nrel \"3\" \"2\"\nrel \"1\" \"2\""
+
 var testCommands = []struct {
 	In  string
 	Err bool
@@ -47,10 +49,26 @@ var testCommands = []struct {
 	{In: "item create abc123 -strict --verbose", Err: false, Out: InputAttributes{ResourceType: "item", ResourceId: "abc123", ResourceIds: []string{}, SecondaryIds: []string{}, Verb: "create", Params: map[string]string{}, Flags: []string{"strict", "verbose"}}},
 }
 
+var testResponses = []struct {
+	In  string
+	Err bool
+	Out Response
+}{
+	{In: "item abc123 external=false\n$$$$\n200 ok \"all ok\"", Err: false, Out: Response{Object: ResponseObject{Type: "item", Repr: `item abc123 external=false`}, Status: ResponseStatus{Code: 200, Message: "all ok"}}},
+	{In: "rel abc123 \"def456\" verb=\"writes to\" async=false\n$$$$\n200 ok \"all ok\"", Err: false, Out: Response{Object: ResponseObject{Type: "rel", Repr: `rel abc123 "def456" verb="writes to" async=false`}, Status: ResponseStatus{Code: 200, Message: "all ok"}}},
+	{In: "$$world\n" + simpleWorld + "\nendworld$$" + "\n$$$$\n200 ok ", Err: false, Out: Response{Object: ResponseObject{Type: "world", Repr: simpleWorld}, Status: ResponseStatus{Code: 200, Message: ""}}},
+	{In: "a b c d" + "\n$$$$\n200 ok ", Err: false, Out: Response{Object: ResponseObject{Type: "ids", Repr: `["a","b","c","d"]`}, Status: ResponseStatus{Code: 200, Message: ""}}},
+	{In: "1 2 3 4" + "\n$$$$\n200 ok ", Err: false, Out: Response{Object: ResponseObject{Type: "ids", Repr: `["1","2","3","4"]`}, Status: ResponseStatus{Code: 200, Message: ""}}},
+}
+
 func TestCommands(t *testing.T) {
 	for _, c := range testCommands {
 		t.Run(c.In, func(t *testing.T) {
 			p, err := Parse(c.In)
+
+			if p.StmtType != "Command" {
+				t.Errorf("expected StmtType to be 'Command', but got: '%s'", p.StmtType)
+			}
 
 			// All commands should have a non-empty values for resource and verb (aka action type).
 			if p.InputAttributes.ResourceType == "" {
@@ -99,6 +117,48 @@ func TestCommands(t *testing.T) {
 			if !c.Err && err != nil {
 				if err != nil {
 					t.Errorf("did not expect error for command: '%s', but got: %s", c.In, err)
+				}
+			}
+
+			if t.Failed() {
+				p.PrintSyntaxTree()
+			}
+		})
+	}
+}
+
+func TestResponses(t *testing.T) {
+	for _, c := range testResponses {
+		t.Run(c.In, func(t *testing.T) {
+			p, err := Parse(c.In)
+
+			if p.StmtType != "Response" {
+				t.Errorf("expected StmtType to be 'Response', but got: '%s'", p.StmtType)
+			}
+
+			// Checking specific output.
+			if p.Response.Object.Type != c.Out.Object.Type {
+				t.Errorf("expected object type: '%s', but got: '%s'", c.Out.Object.Type, p.Response.Object.Type)
+			}
+			if p.Response.Object.Repr != c.Out.Object.Repr {
+				t.Errorf("expected object repr: '%s', but got: '%s'", c.Out.Object.Repr, p.Response.Object.Repr)
+			}
+			if p.Response.Status.Code != c.Out.Status.Code {
+				t.Errorf("expected status code: '%d', but got: '%d'", c.Out.Status.Code, p.Response.Status.Code)
+			}
+			if p.Response.Status.Message != c.Out.Status.Message {
+				t.Errorf("expected status message: '%s', but got: '%s'", c.Out.Status.Message, p.Response.Status.Message)
+			}
+
+			// Checking whether we expected to catch an error.
+			if c.Err && err == nil {
+				if err == nil {
+					t.Errorf("expected error for response: '%s', but got none", c.In)
+				}
+			}
+			if !c.Err && err != nil {
+				if err != nil {
+					t.Errorf("did not expect error for response: '%s', but got: %s", c.In, err)
 				}
 			}
 

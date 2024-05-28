@@ -1,5 +1,9 @@
 package grammar
 
+import (
+    "encoding/json"
+)
+
 type Parser Peg {
     StmtType       string
     InputAttributes
@@ -8,13 +12,17 @@ type Parser Peg {
     text   string // Text parsed by the StringLike rule.
     number int    // Number parsed by the Number rule.
     bool   bool   // Boolean parsed by the Boolean rule.
+
+    treeString  string       // Track the string representation of the Tree parsed by the Tree rule.
+    itemStrings []string     // Track the string representations of Items parsed by the ItemObject rule.
+    relStrings  []string     // Track the string representations of Rels parsed by the RelObject rule.
 }
 
 Valid
   <- Command / Response
 
 Response
-  <- Object? _ EOL Error? END
+  <- Objects? _ DELIMITER DELIMITER _ ErrorOrOkay END
   {
     p.StmtType = "Response"
   }
@@ -68,23 +76,31 @@ CreateOrFetch
 CreateOrSet
   <- Item Identifier ItemParams / Rel DualIdentifier RelParams
 
-Object
-  <- WorldObject / ItemObject+ / RelObject+ / IdentifierList
+Objects
+  <- WorldObject / ItemObject+ / RelObject+ / IdentifierListObject
 
-WorldObject <- BeginWorld <.*> EndWorld         { p.Response.Object.Repr = cleanString(text) }
-ItemObject  <- <Item Identifier ItemParams?>    { p.Response.Object.Repr = cleanString(text) }
-RelObject   <- <Rel DualIdentifier RelParams?>  { p.Response.Object.Repr = cleanString(text) }
+WorldObject             <- BeginWorld Tree RelObject* EndWorld  { p.Response.Object.Type = "world"; p.Response.Object.Repr = strings.Join(append([]string{p.treeString}, p.relStrings...), "\n") }
+ItemObject              <- <Item Identifier ItemParams?>        { p.Response.Object.Type = "item"; p.Response.Object.Repr = cleanString(text); p.itemStrings = append(p.itemStrings, strings.TrimSpace(text)) }
+RelObject               <- <Rel DualIdentifier RelParams?>      { p.Response.Object.Type = "rel"; p.Response.Object.Repr = cleanString(text); p.relStrings = append(p.relStrings, strings.TrimSpace(text)) }
+IdentifierListObject    <- IdentifierList                       { p.Response.Object.Type = "ids"; b, _ := json.Marshal(p.InputAttributes.ResourceIds); p.Response.Object.Repr = string(b) }
 
-Error
-  <- <ERROR Number? StringLike*>
+Tree
+  <- <'tree{' (Nil / ItemObject) '::[' Tree* ']}'> _
   {
-    p.Response.Error.Message = cleanString(text)
-    if p.number != 0 {
-      p.Response.Error.Code = p.number
-    }
+    p.Response.Object.Type = "tree"; p.Response.Object.Repr = text
+    p.treeString = text
   }
 
-Limit <- <Number> { p.InputAttributes.Params["limit"] = cleanString(text) }
+Nil <- 'nil'
+
+ErrorOrOkay
+  <- ErrCode (ERROR / OK) <StringLike*>
+  {
+    p.Response.Status.Message = cleanString(text)
+  }
+
+ErrCode <- <Number> { p.Response.Status.Code = p.number }
+Limit   <- <Number> { p.InputAttributes.Params["limit"] = cleanString(text) }
 
 Identifier
   <- !Keyword <StringLike>
@@ -163,18 +179,19 @@ StrictFlag      <- FLAG STRICT  { p.InputAttributes.Flags = append(p.InputAttrib
 VerboseFlag     <- FLAG VERBOSE { p.InputAttributes.Flags = append(p.InputAttributes.Flags, "verbose") }
 IdsFlag         <- FLAG IDS     { p.InputAttributes.Flags = append(p.InputAttributes.Flags, "ids") }
 
-BeginWorld  <- DELIMITER WORLD
-EndWorld    <- ENDWORLD DELIMITER
+BeginWorld  <- _ DELIMITER WORLD _
+EndWorld    <- _ ENDWORLD DELIMITER _
 
 ItemType
   <- PERSON / DATABASE / QUEUE / BLOBSTORE / BROWSER / MOBILE / SERVER / DEVICE / CODE
 
 Keyword
-  <- WORLD / ENDWORLD / ITEM / ITEM_EXISTS / REL / REL_EXISTS / FROM_QUERY / TO_QUERY / IN / IN_QUERY / CREATE / DELETE / SET / CLEAR / FETCH / LIST / EXISTS / FREE / NEST / FLAG / DELIMITER
+  <- WORLD / ENDWORLD / ERROR / OK / ITEM / ITEM_EXISTS / REL / REL_EXISTS / FROM_QUERY / TO_QUERY / IN / IN_QUERY / CREATE / DELETE / SET / CLEAR / FETCH / LIST / EXISTS / FREE / NEST / FLAG / DELIMITER
 
 WORLD       <- 'world' _
 ENDWORLD    <- 'endworld' _
 ERROR       <- 'error' _
+OK          <- 'ok' _
 ITEM        <- 'item' 's'? _
 ITEM_EXISTS <- 'item?' _
 REL         <- 'rel' 's'? _

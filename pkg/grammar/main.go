@@ -22,14 +22,18 @@ type InputAttributes struct {
 
 // Response is a struct that holds the response from our grammar.
 type Response struct {
-	Object struct {
-		Type string `json:"type"`
-		Repr string `json:"repr"`
-	} `json:"object"`
-	Error struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
+	Object ResponseObject `json:"object"`
+	Status ResponseStatus `json:"status"`
+}
+
+type ResponseObject struct {
+	Type string `json:"type"`
+	Repr string `json:"repr"`
+}
+
+type ResponseStatus struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
 // Parse function to validate and pull information from the input to the REPL.

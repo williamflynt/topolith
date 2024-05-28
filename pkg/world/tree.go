@@ -4,6 +4,7 @@ import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/williamflynt/topolith/pkg/errors"
+	"strings"
 )
 
 var emptyTree = newTree(nil, nil)
@@ -24,6 +25,20 @@ type Tree interface {
 	fmt.Stringer
 }
 
+// TreeFromString returns a Tree from a string representation.
+// It is the inverse of Tree.String().
+//
+// Example of a Tree string:
+// `tree{nil::[tree{item "2" external=false::[tree{item "1" external=false::[]}]} tree{item "3" external=false::[]}]}`
+func TreeFromString(s string) (Tree, []Item, error) {
+	if s == "" {
+		return emptyTree, []Item{}, nil
+	}
+	// TODO: Implement ItemFromString, RelFromString, TreeFromString
+	//  Can use the Parser and Command logic here (shuffling some Command logic into world/ package).
+	panic("TreeFromString not implemented")
+}
+
 // tree implements Tree.
 type tree struct {
 	item       *Item
@@ -31,7 +46,6 @@ type tree struct {
 	parent     *tree
 }
 
-// TODO Deserialize Tree from this format.
 func (t *tree) String() string {
 	treeString := "tree{"
 
@@ -41,12 +55,16 @@ func (t *tree) String() string {
 		treeString += "nil"
 	}
 
-	treeString += "["
+	treeString += "::["
+	componentTrees := make([]string, 0)
 	for _, c := range t.components.ToSlice() {
-		treeString += c.String() + " "
+		componentTrees = append(componentTrees, c.String())
+	}
+	if len(componentTrees) > 0 {
+		treeString += strings.Join(componentTrees, " ")
 	}
 	treeString += "]}"
-	return fmt.Sprintf(`tree "%s"`, t.item.Id)
+	return treeString
 }
 
 func (t *tree) AddOrMove(item *Item) error {

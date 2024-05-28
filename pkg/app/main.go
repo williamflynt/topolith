@@ -44,18 +44,26 @@ func (h *app) World() world.World {
 func (h *app) Exec(s string) string {
 	p, err := grammar.Parse(s)
 	if err != nil || p.StmtType != "Command" {
-		p.PrintSyntaxTree()
-		return "\nerror 400 " + err.Error()
+		if p != nil {
+			p.PrintSyntaxTree()
+		}
+		return errors.New("invalid input").UseCode(errors.TopolithErrorInvalid).WithError(err).WithDescription("invalid input").WithData(errors.KvPair{Key: "input", Value: s}).String()
+
 	}
 	c, err := InputToCommand(p.InputAttributes)
 	if err != nil {
-		return "\nerror 400 " + err.Error()
-
+		return errors.New("invalid input").UseCode(errors.TopolithErrorInvalid).WithError(err).WithDescription("invalid input").WithData(errors.KvPair{Key: "input", Value: s}).String()
 	}
 	stringerObj, err := h.exec(c)
-	response := stringerObj.String() + "\nerror " + err.Error()
+	if err != nil {
+		return errors.New("error executing command").UseCode(errors.TopolithErrorCommandErr).WithError(err).WithDescription("unexpected error executing command").WithData(errors.KvPair{Key: "input", Value: s}).String()
+	}
+	response := okString(stringerObj, err)
 	if p, err := grammar.Parse(response); err != nil || p.StmtType != "Response" {
-		return "\nerror 500 " + err.Error()
+		if p != nil {
+			p.PrintSyntaxTree()
+		}
+		return errors.New("error generating response").UseCode(errors.TopolithErrorInternal).WithError(err).WithDescription("unexpected error generating response").WithData(errors.KvPair{Key: "input", Value: s}).String()
 	}
 	return response
 }
@@ -79,6 +87,8 @@ func (h *app) Persistence() persistance.Persistence {
 // --- INTERNAL ---
 
 func (h *app) exec(c Command) (fmt.Stringer, error) {
+	h.commands = append(h.commands, c)
+	h.commandsIdx++
 	return c.Execute(h.world)
 }
 
@@ -111,4 +121,15 @@ func (h *app) redo() (error, int) {
 	}
 	h.commandsIdx++
 	return nil, len(h.commands) - h.commandsIdx - 1
+}
+
+func errOrEmpty(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func okString(o fmt.Stringer, err error) string {
+	return fmt.Sprintf("%s\n200 ok %s", o, errOrEmpty(err))
 }
