@@ -1,6 +1,7 @@
 package world
 
 import (
+	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
 	"testing"
 )
@@ -55,8 +56,8 @@ func TestEmptyTree(t *testing.T) {
 
 func TestTree_Item(t *testing.T) {
 	root := createSampleTree()
-	if root.Item().Id != "root" {
-		t.Errorf("expected root item ID to be 'root', got '%s'", root.Item().Id)
+	if root.Item().Id != "" {
+		t.Errorf("expected root item ID to be '', got '%s'", root.Item().Id)
 	}
 	rootComponentIds := mapset.NewSet[string]()
 	for _, c := range root.components.ToSlice() {
@@ -89,10 +90,10 @@ func TestTree_Parent(t *testing.T) {
 	root := createSampleTree()
 	child1 := root.components.ToSlice()[0]
 	child2 := root.components.ToSlice()[1]
-	if child1.Parent().Item().Id != "root" {
+	if child1.Parent().Item().Id != "" {
 		t.Errorf("expected parent of child1 to be 'root', got '%s'", child1.Parent().Item().Id)
 	}
-	if child2.Parent().Item().Id != "root" {
+	if child2.Parent().Item().Id != "" {
 		t.Errorf("expected parent of child2 to be 'root', got '%s'", child2.Parent().Item().Id)
 	}
 	if root.Parent() != emptyTree {
@@ -174,11 +175,32 @@ func TestTreeFromString(t *testing.T) {
 	}
 }
 
+func TestTreeSerde(t *testing.T) {
+	root := createSampleTree()
+	serialized := root.String()
+	parsed, _, err := TreeFromString(serialized)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if root.Item().Id != parsed.Item().Id {
+		t.Errorf("expected root item ID to be '%s', got '%s'", root.Item().Id, parsed.Item().Id)
+	}
+	if root.Components().Cardinality() != parsed.Components().Cardinality() {
+		t.Errorf("expected %d components, got %d", root.Components().Cardinality(), parsed.Components().Cardinality())
+	}
+	serialized2 := parsed.String()
+	if serialized != serialized2 {
+		t.Errorf("expected serialized strings to match, they didn't")
+		fmt.Println(serialized)
+		fmt.Println(serialized2)
+	}
+}
+
 // Helper function to create a sample Tree for testing.
 func createSampleTree() *tree {
-	root := &tree{item: &Item{Id: "root"}}
-	child1 := &tree{item: &Item{Id: "child1"}, parent: root}
-	child2 := &tree{item: &Item{Id: "child2"}, parent: root}
+	root := &tree{item: nil, components: mapset.NewSet[Tree]()}
+	child1 := &tree{item: &Item{Id: "child1"}, parent: root, components: mapset.NewSet[Tree]()}
+	child2 := &tree{item: &Item{Id: "child2"}, parent: root, components: mapset.NewSet[Tree]()}
 	root.components = mapset.NewSet[Tree](child1, child2)
 	return root
 }
