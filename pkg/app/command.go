@@ -722,15 +722,15 @@ func boolPtr(b bool) *bool {
 func itemCommand(base CommandBase, input grammar.InputAttributes) (Command, error) {
 	switch CommandVerb(input.Verb) {
 	case Create:
-		return &ItemCreateCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
+		return &ItemCreateCommand{CommandBase: base, Params: world.ItemParamsFromInput(input)}, nil
 	case Fetch:
 		return &ItemFetchCommand{CommandBase: base}, nil
 	case List:
 		return &ItemListCommand{CommandBase: base, Limit: limitFromInput(input)}, nil
 	case Set:
-		return &ItemSetCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
+		return &ItemSetCommand{CommandBase: base, Params: world.ItemParamsFromInput(input)}, nil
 	case Clear:
-		return &ItemClearCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
+		return &ItemClearCommand{CommandBase: base, Params: world.ItemParamsFromInput(input)}, nil
 	case Delete:
 		return &ItemDeleteCommand{CommandBase: base}, nil
 	case Nest:
@@ -744,7 +744,7 @@ func itemCommand(base CommandBase, input grammar.InputAttributes) (Command, erro
 	case CreateOrFetch:
 		return &ItemCreateOrFetchCommand{CommandBase: base}, nil
 	case CreateOrSet:
-		return &ItemCreateOrSetCommand{CommandBase: base, Params: itemParamsFromInput(input)}, nil
+		return &ItemCreateOrSetCommand{CommandBase: base, Params: world.ItemParamsFromInput(input)}, nil
 	default:
 		return nil, errors.New("invalid verb").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "verb", Value: input.Verb}, errors.KvPair{Key: "resourceType", Value: input.ResourceType})
 	}
@@ -753,15 +753,15 @@ func itemCommand(base CommandBase, input grammar.InputAttributes) (Command, erro
 func relCommand(base CommandBase, input grammar.InputAttributes) (Command, error) {
 	switch CommandVerb(input.Verb) {
 	case Create:
-		return &RelCreateCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
+		return &RelCreateCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: world.RelParamsFromInput(input)}, nil
 	case Fetch:
 		return &RelFetchCommand{CommandBase: base, ToId: input.SecondaryIds[0]}, nil
 	case List:
 		return &RelListCommand{CommandBase: base, Limit: limitFromInput(input)}, nil
 	case Set:
-		return &RelSetCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
+		return &RelSetCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: world.RelParamsFromInput(input)}, nil
 	case Clear:
-		return &RelClearCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
+		return &RelClearCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: world.RelParamsFromInput(input)}, nil
 	case Delete:
 		return &RelDeleteCommand{CommandBase: base, ToId: input.SecondaryIds[0]}, nil
 	case Exists:
@@ -773,47 +773,10 @@ func relCommand(base CommandBase, input grammar.InputAttributes) (Command, error
 	case CreateOrFetch:
 		return &RelCreateOrFetchCommand{CommandBase: base, ToId: input.SecondaryIds[0]}, nil
 	case CreateOrSet:
-		return &RelCreateOrSetCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: relParamsFromInput(input)}, nil
+		return &RelCreateOrSetCommand{CommandBase: base, ToId: input.SecondaryIds[0], Params: world.RelParamsFromInput(input)}, nil
 	default:
 		return nil, errors.New("invalid verb").UseCode(errors.TopolithErrorInvalid).WithData(errors.KvPair{Key: "verb", Value: input.Verb}, errors.KvPair{Key: "resourceType", Value: input.ResourceType})
 	}
-}
-
-func itemParamsFromInput(input grammar.InputAttributes) world.ItemParams {
-	params := world.ItemParams{}
-	if v, ok := input.Params["external"]; ok {
-		params.External = boolPtr(v == "true")
-	}
-	if v, ok := input.Params["type"]; ok {
-		params.Type = strPtr(v)
-	}
-	if v, ok := input.Params["name"]; ok {
-		params.Name = strPtr(v)
-	}
-	if v, ok := input.Params["mechanism"]; ok {
-		params.Mechanism = strPtr(v)
-	}
-	if v, ok := input.Params["expanded"]; ok {
-		params.Expanded = strPtr(v)
-	}
-	return params
-}
-
-func relParamsFromInput(input grammar.InputAttributes) world.RelParams {
-	params := world.RelParams{}
-	if v, ok := input.Params["verb"]; ok {
-		params.Verb = strPtr(v)
-	}
-	if v, ok := input.Params["mechanism"]; ok {
-		params.Mechanism = strPtr(v)
-	}
-	if v, ok := input.Params["async"]; ok {
-		params.Async = boolPtr(v == "true")
-	}
-	if v, ok := input.Params["expanded"]; ok {
-		params.Expanded = strPtr(v)
-	}
-	return params
 }
 
 func limitFromInput(input grammar.InputAttributes) int {

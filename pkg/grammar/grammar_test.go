@@ -10,6 +10,7 @@ import (
 // TODO(wf 27 May 2024): More robust testing for commands.
 // TODO(wf 27 May 2024): Test responses, errors, World representation and parsing.
 
+var simpleTree = "tree{nil::[tree{item \"2\"::[tree{item \"1\"::[]}]} tree{item \"3\"::[]}]}"
 var simpleWorld = "tree{nil::[tree{item \"2\" external=false::[tree{item \"1\" external=false::[]}]} tree{item \"3\" external=false::[]}]}\nrel \"3\" \"2\"\nrel \"1\" \"2\""
 
 var testCommands = []struct {
@@ -59,6 +60,20 @@ var testResponses = []struct {
 	{In: "$$world\n" + simpleWorld + "\nendworld$$" + "\n$$$$\n200 ok ", Err: false, Out: Response{Object: ResponseObject{Type: "world", Repr: simpleWorld}, Status: ResponseStatus{Code: 200, Message: ""}}},
 	{In: "a b c d" + "\n$$$$\n200 ok ", Err: false, Out: Response{Object: ResponseObject{Type: "ids", Repr: `["a","b","c","d"]`}, Status: ResponseStatus{Code: 200, Message: ""}}},
 	{In: "1 2 3 4" + "\n$$$$\n200 ok ", Err: false, Out: Response{Object: ResponseObject{Type: "ids", Repr: `["1","2","3","4"]`}, Status: ResponseStatus{Code: 200, Message: ""}}},
+}
+
+var testTrees = []struct {
+	In   string
+	Err  bool
+	Tree Node
+}{
+	{In: simpleTree, Err: false, Tree: Node{
+		"nil", []Node{
+			{Id: "2", Children: []Node{
+				{Id: "1", Children: []Node{}},
+			}},
+			{Id: "3", Children: []Node{}},
+		}}},
 }
 
 func TestCommands(t *testing.T) {
@@ -159,6 +174,39 @@ func TestResponses(t *testing.T) {
 			if !c.Err && err != nil {
 				if err != nil {
 					t.Errorf("did not expect error for response: '%s', but got: %s", c.In, err)
+				}
+			}
+
+			if t.Failed() {
+				p.PrintSyntaxTree()
+			}
+		})
+	}
+}
+
+func TestTrees(t *testing.T) {
+	for _, testTree := range testTrees {
+		t.Run(testTree.In, func(t *testing.T) {
+			p, err := Parse(testTree.In)
+
+			if p.StmtType != "Tree" {
+				t.Errorf("expected StmtType to be 'Tree', but got: '%s'", p.StmtType)
+			}
+
+			// Checking specific output.
+			if !reflect.DeepEqual(p.Tree, testTree.Tree) {
+				t.Errorf("expected tree map: '%v', but got: '%v'", testTree.Tree, p.Tree)
+			}
+
+			// Checking whether we expected to catch an error.
+			if testTree.Err && err == nil {
+				if err == nil {
+					t.Errorf("expected error for tree: '%s', but got none", testTree.In)
+				}
+			}
+			if !testTree.Err && err != nil {
+				if err != nil {
+					t.Errorf("did not expect error for tree: '%s', but got: %s", testTree.In, err)
 				}
 			}
 

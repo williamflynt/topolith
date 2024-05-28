@@ -46,8 +46,10 @@ func (e TopolithError) ClearData() TopolithError {
 	return e
 }
 
-func (e TopolithError) WithError(err error) TopolithError {
-	e.errs = append(e.errs, err)
+func (e TopolithError) WithError(errs ...error) TopolithError {
+	for _, err := range errs {
+		e.errs = append(e.errs, err)
+	}
 	return e
 }
 

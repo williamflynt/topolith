@@ -7,6 +7,13 @@ import "strings"
 //  Make ResourceType, Flag, etc... constants
 //  Then work those into the `.peg` file (the Go code parts).
 
+// Node is a struct that represents a node in a tree.
+// We use this to extract the structure of the world.Tree when we parse a World or standalone tree.
+type Node struct {
+	Id       string
+	Children []Node
+}
+
 // InputAttributes is a struct that holds information from the parsed input to the REPL.
 type InputAttributes struct {
 	ResourceType string            `json:"resourceType"`

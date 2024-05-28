@@ -4,6 +4,7 @@ import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/williamflynt/topolith/pkg/errors"
+	"github.com/williamflynt/topolith/pkg/grammar"
 	"strings"
 )
 
@@ -28,15 +29,57 @@ type Tree interface {
 // TreeFromString returns a Tree from a string representation.
 // It is the inverse of Tree.String().
 //
+// We can also get all the items in a World from parsing the Tree string!
+//
 // Example of a Tree string:
 // `tree{nil::[tree{item "2" external=false::[tree{item "1" external=false::[]}]} tree{item "3" external=false::[]}]}`
-func TreeFromString(s string) (Tree, []Item, error) {
+func TreeFromString(s string) (Tree, map[string]Item, error) {
 	if s == "" {
-		return emptyTree, []Item{}, nil
+		return emptyTree, map[string]Item{}, nil
 	}
-	// TODO: Implement ItemFromString, RelFromString, TreeFromString
-	//  Can use the Parser and Command logic here (shuffling some Command logic into world/ package).
-	panic("TreeFromString not implemented")
+
+	p, err := grammar.Parse(s)
+	if err != nil {
+		return nil, map[string]Item{}, errors.New("error parsing Tree").UseCode(errors.TopolithErrorInvalid).WithError(err).WithDescription("error parsing Tree").WithData(errors.KvPair{Key: "input", Value: s})
+	}
+
+	itemMap := make(map[string]Item)
+	for _, itemStr := range p.ItemStrings {
+		item, err := ItemFromString(itemStr)
+		if err != nil {
+			return nil, itemMap, err
+		}
+		itemMap[item.Id] = item
+	}
+
+	t, err := convertNodeToTree(p.Tree, itemMap, nil)
+	return t, itemMap, err
+}
+
+// convertNodeToTree recursively converts a grammar.Node to a Tree.
+func convertNodeToTree(node grammar.Node, itemMap map[string]Item, parent *tree) (*tree, error) {
+	var itemPtr *Item
+	if parent != nil {
+		item, ok := itemMap[node.Id]
+		if !ok {
+			return parent, errors.New("Item not found in map").UseCode(errors.TopolithErrorNotFound).WithDescription("Item not found in map").WithData(errors.KvPair{Key: "id", Value: node.Id})
+		}
+		itemPtr = &item
+	}
+	delete(itemMap, node.Id) // Prevent cycles.
+	t := &tree{
+		item:       itemPtr,
+		components: mapset.NewSet[Tree](),
+		parent:     parent,
+	}
+	for _, childNode := range node.Children {
+		childTree, err := convertNodeToTree(childNode, itemMap, t)
+		if err != nil {
+			return t, err
+		}
+		t.components.Add(childTree)
+	}
+	return t, nil
 }
 
 // tree implements Tree.

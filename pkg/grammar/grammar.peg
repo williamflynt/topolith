@@ -13,13 +13,17 @@ type Parser Peg {
     number int    // Number parsed by the Number rule.
     bool   bool   // Boolean parsed by the Boolean rule.
 
-    treeString  string       // Track the string representation of the Tree parsed by the Tree rule.
-    itemStrings []string     // Track the string representations of Items parsed by the ItemObject rule.
-    relStrings  []string     // Track the string representations of Rels parsed by the RelObject rule.
+    Tree        Node         // The root of the world.Tree.
+    TreeString  string       // Track the string representation of the Tree parsed by the Tree rule.
+    ItemStrings []string     // Track the string representations of Items parsed by the ItemObject rule.
+    RelStrings  []string     // Track the string representations of Rels parsed by the RelObject rule.
+
+    currentId string // Current Identifier being parsed.
+    nodeStack []Node // Stack of nodes for building the tree.
 }
 
 Valid
-  <- Command / Response
+  <- Command / Response / Tree
 
 Response
   <- Objects? _ DELIMITER DELIMITER _ ErrorOrOkay END
@@ -77,21 +81,37 @@ CreateOrSet
   <- Item Identifier ItemParams / Rel DualIdentifier RelParams
 
 Objects
-  <- WorldObject / ItemObject+ / RelObject+ / IdentifierListObject
+  <- WorldObject / Tree / ItemObject+ / RelObject+ / IdentifierListObject
 
-WorldObject             <- BeginWorld Tree RelObject* EndWorld  { p.Response.Object.Type = "world"; p.Response.Object.Repr = strings.Join(append([]string{p.treeString}, p.relStrings...), "\n") }
-ItemObject              <- <Item Identifier ItemParams?>        { p.Response.Object.Type = "item"; p.Response.Object.Repr = cleanString(text); p.itemStrings = append(p.itemStrings, strings.TrimSpace(text)) }
-RelObject               <- <Rel DualIdentifier RelParams?>      { p.Response.Object.Type = "rel"; p.Response.Object.Repr = cleanString(text); p.relStrings = append(p.relStrings, strings.TrimSpace(text)) }
+WorldObject             <- BeginWorld Tree RelObject* EndWorld  { p.Response.Object.Type = "world"; p.Response.Object.Repr = strings.Join(append([]string{p.TreeString}, p.RelStrings...), "\n") }
+ItemObject              <- <Item Identifier ItemParams?>
+  {
+    p.Response.Object.Type = "item"; p.Response.Object.Repr = cleanString(text); p.ItemStrings = append(p.ItemStrings, strings.TrimSpace(text))
+    p.currentId = p.InputAttributes.ResourceId
+    p.nodeStack = append(p.nodeStack, Node{Id: p.currentId, Children: []Node{}})
+  }
+RelObject               <- <Rel DualIdentifier RelParams?>      { p.Response.Object.Type = "rel"; p.Response.Object.Repr = cleanString(text); p.RelStrings = append(p.RelStrings, strings.TrimSpace(text)) }
 IdentifierListObject    <- IdentifierList                       { p.Response.Object.Type = "ids"; b, _ := json.Marshal(p.InputAttributes.ResourceIds); p.Response.Object.Repr = string(b) }
-
 Tree
   <- <'tree{' (Nil / ItemObject) '::[' Tree* ']}'> _
   {
-    p.Response.Object.Type = "tree"; p.Response.Object.Repr = text
-    p.treeString = text
+    p.StmtType = "Tree"; p.Response.Object.Type = "tree"; p.Response.Object.Repr = text; p.TreeString = text
+    if len(p.nodeStack) > 0 {
+      node := p.nodeStack[len(p.nodeStack)-1]
+      p.nodeStack = p.nodeStack[:len(p.nodeStack)-1]
+      if len(p.nodeStack) > 0 {
+        p.nodeStack[len(p.nodeStack)-1].Children = append(p.nodeStack[len(p.nodeStack)-1].Children, node)
+      } else {
+        p.Tree = node
+      }
+    }
   }
 
 Nil <- 'nil'
+    {
+      p.currentId = "nil"
+      p.nodeStack = append(p.nodeStack, Node{Id: p.currentId, Children: []Node{}})
+    }
 
 ErrorOrOkay
   <- ErrCode (ERROR / OK) <StringLike*>

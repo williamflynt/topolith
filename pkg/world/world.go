@@ -200,6 +200,17 @@ func (w *world) ItemSet(id string, params ItemParams) WorldWithItem {
 			WithData(errors.KvPair{Key: "id", Value: id})
 		return w
 	}
+	item, err := itemSet(item, params)
+	if err != nil {
+		w.latestErr = err
+	}
+	w.Items[id] = item
+	w.latestItem = &item
+	return w
+}
+
+func itemSet(item Item, params ItemParams) (Item, error) {
+	errs := make([]error, 0)
 	if params.Name != nil {
 		item.Name = *params.Name
 	}
@@ -213,15 +224,16 @@ func (w *world) ItemSet(id string, params ItemParams) WorldWithItem {
 		if iotaType, err := strconv.Atoi(*params.Type); err == nil {
 			item.Type = ItemType(iotaType)
 		} else {
-			w.latestErr = err
+			errs = append(errs, err)
 		}
 	}
 	if params.Mechanism != nil {
 		item.Mechanism = *params.Mechanism
 	}
-	w.Items[id] = item
-	w.latestItem = &item
-	return w
+	if len(errs) > 0 {
+		return item, errors.New("error setting Item params").UseCode(errors.TopolithErrorConflict).WithError(errs...)
+	}
+	return item, nil
 }
 
 func (w *world) ItemParent(childId string) (Item, bool) {
@@ -360,6 +372,16 @@ func (w *world) RelSet(fromId, toId string, params RelParams) WorldWithRel {
 			WithData(errors.KvPair{Key: "fromId", Value: fromId}, errors.KvPair{Key: "toId", Value: toId})
 		return w
 	}
+	rel, err := relSet(rel, params)
+	if err != nil {
+		w.latestErr = err
+	}
+	w.Rels[rel.id()] = rel
+	w.latestRel = &rel
+	return w
+}
+
+func relSet(rel Rel, params RelParams) (Rel, error) {
 	if params.Verb != nil {
 		rel.Verb = *params.Verb
 	}
@@ -372,9 +394,7 @@ func (w *world) RelSet(fromId, toId string, params RelParams) WorldWithRel {
 	if params.Expanded != nil {
 		rel.Expanded = *params.Expanded
 	}
-	w.Rels[rel.id()] = rel
-	w.latestRel = &rel
-	return w
+	return rel, nil
 }
 
 func (w *world) In(childId, parentId string, strict bool) bool {
@@ -523,4 +543,12 @@ func (w *world) resetLatestTrackers() {
 	w.latestItem = &Item{}
 	w.latestRel = &Rel{}
 	w.latestErr = nil
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }

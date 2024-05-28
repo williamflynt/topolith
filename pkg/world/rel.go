@@ -2,6 +2,7 @@ package world
 
 import (
 	"fmt"
+	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/grammar"
 	"strings"
 )
@@ -42,6 +43,22 @@ func (r Rel) String() string {
 	return rel
 }
 
+func RelFromString(w World, s string) (Rel, error) {
+	p, err := grammar.Parse(s)
+	if err != nil {
+		return Rel{}, fmt.Errorf("error parsing Rel: %w", err)
+	}
+	fromItem, ok := w.ItemFetch(p.InputAttributes.ResourceId)
+	if !ok {
+		return Rel{}, errors.New("from Item not found").UseCode(errors.TopolithErrorNotFound).WithDescription("FromItem not found").WithData(errors.KvPair{Key: "input", Value: s}, errors.KvPair{Key: "fromId", Value: p.InputAttributes.ResourceId})
+	}
+	toItem, ok := w.ItemFetch(p.InputAttributes.SecondaryIds[0])
+	if !ok {
+		return Rel{}, errors.New("to Item not found").UseCode(errors.TopolithErrorNotFound).WithDescription("ToItem not found").WithData(errors.KvPair{Key: "input", Value: s}, errors.KvPair{Key: "toId", Value: p.InputAttributes.SecondaryIds[0]})
+	}
+	return relSet(Rel{From: fromItem, To: toItem}, RelParamsFromInput(p.InputAttributes))
+}
+
 // id returns the ID of the Rel.
 func (r Rel) id() string {
 	return relIdFromIds(r.From.Id, r.To.Id)
@@ -57,4 +74,21 @@ type RelParams struct {
 	Mechanism *string `json:"mechanism"`
 	Async     *bool   `json:"async"`
 	Expanded  *string `json:"expanded"`
+}
+
+func RelParamsFromInput(input grammar.InputAttributes) RelParams {
+	params := RelParams{}
+	if v, ok := input.Params["verb"]; ok {
+		params.Verb = strPtr(v)
+	}
+	if v, ok := input.Params["mechanism"]; ok {
+		params.Mechanism = strPtr(v)
+	}
+	if v, ok := input.Params["async"]; ok {
+		params.Async = boolPtr(v == "true")
+	}
+	if v, ok := input.Params["expanded"]; ok {
+		params.Expanded = strPtr(v)
+	}
+	return params
 }

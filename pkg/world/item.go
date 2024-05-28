@@ -2,6 +2,8 @@ package world
 
 import (
 	"fmt"
+	"github.com/williamflynt/topolith/pkg/errors"
+	"github.com/williamflynt/topolith/pkg/grammar"
 	"strings"
 )
 
@@ -102,6 +104,15 @@ func (i Item) String() string {
 	return item
 }
 
+// ItemFromString returns an Item from the string representation in accordance with grammar.Parser.
+func ItemFromString(s string) (Item, error) {
+	p, err := grammar.Parse(s)
+	if err != nil {
+		return Item{}, errors.New("error parsing Item").UseCode(errors.TopolithErrorInvalid).WithError(err).WithDescription("error parsing Item").WithData(errors.KvPair{Key: "input", Value: s})
+	}
+	return itemSet(Item{Id: p.InputAttributes.ResourceId}, ItemParamsFromInput(p.InputAttributes))
+}
+
 // id returns the ID of the Item.
 func (i Item) id() string {
 	return i.Id
@@ -114,4 +125,24 @@ type ItemParams struct {
 	Name      *string `json:"name"`
 	Mechanism *string `json:"mechanism"`
 	Expanded  *string `json:"expanded"`
+}
+
+func ItemParamsFromInput(input grammar.InputAttributes) ItemParams {
+	params := ItemParams{}
+	if v, ok := input.Params["external"]; ok {
+		params.External = boolPtr(v == "true")
+	}
+	if v, ok := input.Params["type"]; ok {
+		params.Type = strPtr(v)
+	}
+	if v, ok := input.Params["name"]; ok {
+		params.Name = strPtr(v)
+	}
+	if v, ok := input.Params["mechanism"]; ok {
+		params.Mechanism = strPtr(v)
+	}
+	if v, ok := input.Params["expanded"]; ok {
+		params.Expanded = strPtr(v)
+	}
+	return params
 }

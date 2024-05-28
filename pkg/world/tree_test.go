@@ -58,11 +58,15 @@ func TestTree_Item(t *testing.T) {
 	if root.Item().Id != "root" {
 		t.Errorf("expected root item ID to be 'root', got '%s'", root.Item().Id)
 	}
-	if root.components.ToSlice()[0].Item().Id != "child1" {
-		t.Errorf("expected first child item ID to be 'child1', got '%s'", root.components.ToSlice()[0].Item().Id)
+	rootComponentIds := mapset.NewSet[string]()
+	for _, c := range root.components.ToSlice() {
+		rootComponentIds.Add(c.Item().Id)
 	}
-	if root.components.ToSlice()[1].Item().Id != "child2" {
-		t.Errorf("expected second child item ID to be 'child2', got '%s'", root.components.ToSlice()[1].Item().Id)
+	if !rootComponentIds.Contains("child1") {
+		t.Error("expected 'child1' in components")
+	}
+	if !rootComponentIds.Contains("child2") {
+		t.Error("expected 'child2' in components")
 	}
 }
 
@@ -113,6 +117,49 @@ func TestTree_Empty(t *testing.T) {
 	if !emptyChild.Empty() {
 		t.Error("expected emptyChild to be empty")
 	}
+}
+
+func TestTreeFromString(t *testing.T) {
+	simpleTree := "tree{nil::[tree{item \"2\"::[tree{item \"1\"::[]}]} tree{item \"3\"::[]}]}"
+	parsed, _, err := TreeFromString(simpleTree)
+	if parsed == nil {
+		t.Fatal("expected parsed tree not to be nil")
+	}
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if parsed.Item().Id != "" {
+		t.Errorf("expected root item ID to be 'nil', got '%s'", parsed.Item().Id)
+	}
+	components := parsed.Components().ToSlice()
+	if len(components) != 2 {
+		t.Errorf("expected 2 components, got %d", len(components))
+	}
+	if components[0].Item().Id != "2" {
+		t.Errorf("expected first child item ID to be '2', got '%s'", components[0].Item().Id)
+	}
+	if components[1].Item().Id != "3" {
+		t.Errorf("expected second child item ID to be '3', got '%s'", components[1].Item().Id)
+	}
+
+	tree2 := parsed.Components().ToSlice()[0]
+	if tree2.Components().IsEmpty() {
+		t.Error("expected tree2 to have 1 component")
+	}
+
+	tree2_1 := tree2.Components().ToSlice()[0]
+	if tree2_1.Item().Id != "1" {
+		t.Errorf("expected tree2_1 item ID to be '1', got '%s'", tree2_1.Item().Id)
+	}
+	if !tree2_1.Components().IsEmpty() {
+		t.Error("expected tree2_1 to have no components")
+	}
+
+	tree3 := parsed.Components().ToSlice()[1]
+	if !tree3.Components().IsEmpty() {
+		t.Error("expected tree3 to have no components")
+	}
+
 }
 
 // Helper function to create a sample Tree for testing.
