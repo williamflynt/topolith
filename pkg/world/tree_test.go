@@ -128,6 +128,8 @@ func TestTreeFromString(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
+
+	// TEST the root Node.
 	if parsed.Item().Id != "" {
 		t.Errorf("expected root item ID to be 'nil', got '%s'", parsed.Item().Id)
 	}
@@ -135,18 +137,29 @@ func TestTreeFromString(t *testing.T) {
 	if len(components) != 2 {
 		t.Errorf("expected 2 components, got %d", len(components))
 	}
-	if components[0].Item().Id != "2" {
-		t.Errorf("expected first child item ID to be '2', got '%s'", components[0].Item().Id)
+
+	// FIND Node for Item 2.
+	tree2 := components[0]
+	if tree2.Item().Id != "2" {
+		tree2 = components[1]
 	}
-	if components[1].Item().Id != "3" {
-		t.Errorf("expected second child item ID to be '3', got '%s'", components[1].Item().Id)
+	if tree2.Item().Id != "2" {
+		t.Fatalf("expected tree2 item ID to be '2', not found (got '%s')", tree2.Item().Id)
 	}
 
-	tree2 := parsed.Components().ToSlice()[0]
+	// FIND Node for Item 3.
+	tree3 := components[0]
+	if tree3.Item().Id != "3" {
+		tree3 = components[1]
+	}
+	if tree3.Item().Id != "3" {
+		t.Fatalf("expected tree3 item ID to be '3', not found (got '%s')", tree3.Item().Id)
+	}
+
+	// TEST NODE 2.
 	if tree2.Components().IsEmpty() {
 		t.Error("expected tree2 to have 1 component")
 	}
-
 	tree2_1 := tree2.Components().ToSlice()[0]
 	if tree2_1.Item().Id != "1" {
 		t.Errorf("expected tree2_1 item ID to be '1', got '%s'", tree2_1.Item().Id)
@@ -155,11 +168,10 @@ func TestTreeFromString(t *testing.T) {
 		t.Error("expected tree2_1 to have no components")
 	}
 
-	tree3 := parsed.Components().ToSlice()[1]
+	// TEST NODE 3.
 	if !tree3.Components().IsEmpty() {
 		t.Error("expected tree3 to have no components")
 	}
-
 }
 
 // Helper function to create a sample Tree for testing.
