@@ -11,7 +11,7 @@ import (
 // TODO(wf 27 May 2024): Test responses, errors, World representation and parsing.
 
 var simpleTree = "tree{nil::[tree{item \"2\"::[tree{item \"1\"::[]}]} tree{item \"3\"::[]}]}"
-var simpleWorld = "tree{nil::[tree{item \"2\" external=false::[tree{item \"1\" external=false::[]}]} tree{item \"3\" external=false::[]}]}\nrel \"3\" \"2\"\nrel \"1\" \"2\""
+var simpleWorld = "version=1\nid=1\nname=worldname\nexpanded=\"this is expanded data\"\ntree{nil::[tree{item \"2\" external=false::[tree{item \"1\" external=false::[]}]} tree{item \"3\" external=false::[]}]}\nrel \"3\" \"2\"\nrel \"1\" \"2\""
 
 var testCommands = []struct {
 	In  string

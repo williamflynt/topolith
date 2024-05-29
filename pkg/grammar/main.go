@@ -54,6 +54,9 @@ func Parse(s string) (*Parser, error) {
 			Params:       make(map[string]string),
 			Flags:        make([]string, 0),
 		},
+		ItemStrings: make([]string, 0),
+		RelStrings:  make([]string, 0),
+		WorldParams: map[string]string{},
 	}
 	if err := p.Init(); err != nil {
 		return p, err

@@ -18,12 +18,16 @@ type Parser Peg {
     ItemStrings []string     // Track the string representations of Items parsed by the ItemObject rule.
     RelStrings  []string     // Track the string representations of Rels parsed by the RelObject rule.
 
+    // For building the tree.
     currentId string // Current Identifier being parsed.
     nodeStack []Node // Stack of nodes for building the tree.
+
+    // For parsing World.
+    WorldParams map[string]string
 }
 
 Valid
-  <- Command / Response / Tree
+  <- Command / Response / WorldObject / Tree
 
 Response
   <- Objects? _ DELIMITER DELIMITER _ ErrorOrOkay END
@@ -83,7 +87,11 @@ CreateOrSet
 Objects
   <- WorldObject / Tree / ItemObject+ / RelObject+ / IdentifierListObject
 
-WorldObject             <- BeginWorld Tree RelObject* EndWorld  { p.Response.Object.Type = "world"; p.Response.Object.Repr = strings.Join(append([]string{p.TreeString}, p.RelStrings...), "\n") }
+WorldObject             <- BeginWorld WorldParams Tree RelObject* EndWorld
+  {
+    p.Response.Object.Type = "world"
+    p.Response.Object.Repr = strings.Join(append([]string{p.WorldParams["paramString"], p.TreeString}, p.RelStrings...), "\n")
+  }
 ItemObject              <- <Item Identifier ItemParams?>
   {
     p.Response.Object.Type = "item"; p.Response.Object.Repr = cleanString(text); p.ItemStrings = append(p.ItemStrings, strings.TrimSpace(text))
@@ -145,8 +153,17 @@ IdentifierList
     }
   }
 
+WorldParams <- _ WorldParamVersion _ WorldParamId _ WorldParamName _ WorldParamExpanded _
+  {
+    p.WorldParams["paramString"] = fmt.Sprintf("version=%s\nid=%s\nname=%s\nexpanded=%s", p.WorldParams["version"], p.WorldParams["id"], p.WorldParams["name"], p.WorldParams["expanded"])
+  }
 ItemParams  <- (ItemParam)+
 RelParams   <- (RelParam)+
+
+WorldParamVersion <- VERSION EQUALS <Number>        { p.WorldParams["version"] = cleanString(text) }
+WorldParamId      <- ID EQUALS <StringLike>         { p.WorldParams["id"] = strings.TrimSpace(text) }
+WorldParamName    <- NAME EQUALS <StringLike>       { p.WorldParams["name"] = strings.TrimSpace(text) }
+WorldParamExpanded <- EXPANDED EQUALS <StringLike>  { p.WorldParams["expanded"] = strings.TrimSpace(text) }
 
 ItemParam
   <- EXTERNAL EQUALS <Boolean>      { p.Params["external"] = cleanString(text) }
@@ -239,6 +256,8 @@ VERB        <- 'verb'
 MECHANISM   <- 'mechanism'
 ASYNC       <- 'async'
 EXPANDED    <- 'expanded'
+VERSION     <- 'version'
+ID          <- 'id'
 
 PERSON      <- 'person' _
 DATABASE    <- 'database' _

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/williamflynt/topolith/pkg/errors"
+	"github.com/williamflynt/topolith/pkg/grammar"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,6 +18,11 @@ type Info interface {
 	Id() string       // Id is the unique identifier of the World.
 	Name() string     // Name is the display name of the World; meant for humans.
 	Expanded() string // Expanded is the expanded description of the World.
+
+	SetVersion(version int) World      // SetVersion sets the version of the World.
+	SetId(id string) World             // SetId sets the unique identifier of the World.
+	SetName(name string) World         // SetName sets the display name of the World; meant for humans.
+	SetExpanded(expanded string) World // SetExpanded sets the expanded description of the World.
 }
 
 // Operations is an interface that represents operations over the state of the World.
@@ -71,6 +77,85 @@ type WorldWithBoth interface {
 	WorldWithRel
 }
 
+// FromString returns a World from a grammar-adherent string representation.
+//
+// It expects the string to be in the format of:
+// ```
+// $$world
+// version=1
+// id=default-world
+// name="Default World"
+// expanded="The default world for all things."
+// <tree>
+// <rel> ...
+// endworld$$
+// ```
+func FromString(s string) (World, error) {
+	p, err := grammar.Parse(s)
+	if err != nil {
+		return nil, errors.New("error parsing World").UseCode(errors.TopolithErrorInvalid).WithError(err).WithDescription("error parsing World").WithData(errors.KvPair{Key: "input", Value: s})
+	}
+
+	w := CreateWorld(p.WorldParams["name"])
+
+	if version, err := strconv.Atoi(p.WorldParams["version"]); err == nil && version != 0 {
+		w.SetVersion(version)
+	}
+	if p.WorldParams["id"] != "" {
+		w.SetId(p.WorldParams["id"])
+	}
+	if p.WorldParams["expanded"] != "" {
+		w.SetExpanded(p.WorldParams["expanded"])
+	}
+
+	for _, itemStr := range p.ItemStrings {
+		item, err := ItemFromString(itemStr)
+		if err != nil {
+			return nil, err
+		}
+		w.ItemCreate(item.Id, ItemParams{
+			Name:      strPtr(item.Name),
+			Expanded:  strPtr(item.Expanded),
+			External:  boolPtr(item.External),
+			Type:      strPtr(strconv.Itoa(int(item.Type))),
+			Mechanism: strPtr(item.Mechanism),
+		})
+	}
+
+	// We added our items, but they all sit at Tree root. We need to nest them properly.
+	// Luckily, our Parser has a Tree representation containing the IDs and nesting we need.
+	type queueItem struct {
+		node     grammar.Node
+		parentId string
+	}
+	stack := []queueItem{{p.Tree, ""}}
+	for len(stack) > 0 {
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		for _, child := range current.node.Children {
+			stack = append(stack, queueItem{child, current.node.Id})
+		}
+		if current.parentId != "" {
+			w.Nest(current.node.Id, current.parentId)
+		}
+	}
+
+	for _, relStr := range p.RelStrings {
+		rel, err := RelFromString(w, relStr)
+		if err != nil {
+			return nil, err
+		}
+		w.RelCreate(rel.From.Id, rel.To.Id, RelParams{
+			Verb:      strPtr(rel.Verb),
+			Mechanism: strPtr(rel.Mechanism),
+			Async:     boolPtr(rel.Async),
+			Expanded:  strPtr(rel.Expanded),
+		})
+	}
+
+	return w, nil
+}
+
 // world is the internal implementation of the WorldWithBoth interface.
 // It necessarily implements World.
 type world struct {
@@ -109,7 +194,11 @@ func (w *world) String() string {
 	for _, rel := range w.Rels {
 		allRels = append(allRels, rel.String())
 	}
-	return fmt.Sprintf("$$world\n%s\n%s\nendworld$$",
+	return fmt.Sprintf("$$world\nversion=%d\nid=%s\nname=%s\nexpanded=%s\n%s\n%s\nendworld$$",
+		w.Version_,
+		w.Id_,
+		w.Name_,
+		w.Expanded_,
 		treeString,
 		strings.Join(allRels, "\n"),
 	)
@@ -129,6 +218,26 @@ func (w *world) Name() string {
 
 func (w *world) Expanded() string {
 	return w.Expanded_
+}
+
+func (w *world) SetVersion(version int) World {
+	w.Version_ = version
+	return w
+}
+
+func (w *world) SetId(id string) World {
+	w.Id_ = id
+	return w
+}
+
+func (w *world) SetName(name string) World {
+	w.Name_ = name
+	return w
+}
+
+func (w *world) SetExpanded(expanded string) World {
+	w.Expanded_ = expanded
+	return w
 }
 
 func (w *world) ItemCreate(id string, params ItemParams) WorldWithItem {
