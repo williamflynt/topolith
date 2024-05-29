@@ -5,6 +5,7 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/grammar"
+	"sort"
 	"strings"
 )
 
@@ -54,6 +55,37 @@ func TreeFromString(s string) (Tree, map[string]Item, error) {
 
 	t, err := convertNodeToTree(p.Tree, itemMap, nil)
 	return t, itemMap, err
+}
+
+func TreeEqual(t1, t2 Tree) bool {
+	// Basic item comparison.
+	if !ItemEqual(t1.Item(), t2.Item()) {
+		return false
+	}
+	// Compare number of components.
+	if t1.Components().Cardinality() != t2.Components().Cardinality() {
+		return false
+	}
+	// Sort because set order is not guaranteed.
+	components1Slice := t1.Components().ToSlice()
+	components2Slice := t2.Components().ToSlice()
+	sort.Slice(components1Slice, func(i, j int) bool {
+		return components1Slice[i].Item().Id < components1Slice[j].Item().Id
+	})
+	sort.Slice(components2Slice, func(i, j int) bool {
+		return components1Slice[i].Item().Id < components1Slice[j].Item().Id
+	})
+	// Compare recursively.
+	for i, c1 := range components1Slice {
+		c2 := components2Slice[i]
+		if !ItemEqual(c1.Item(), c2.Item()) {
+			return false
+		}
+		if !TreeEqual(c1, c2) {
+			return false
+		}
+	}
+	return true
 }
 
 // convertNodeToTree recursively converts a grammar.Node to a Tree.

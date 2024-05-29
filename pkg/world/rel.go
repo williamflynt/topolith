@@ -59,6 +59,28 @@ func RelFromString(w World, s string) (Rel, error) {
 	return relSet(Rel{From: fromItem, To: toItem}, RelParamsFromInput(p.InputAttributes))
 }
 
+func RelEqual(r1, r2 Rel) bool {
+	if !ItemEqual(r1.From, r2.From) {
+		return false
+	}
+	if !ItemEqual(r1.To, r2.To) {
+		return false
+	}
+	if r1.Verb != r2.Verb {
+		return false
+	}
+	if r1.Mechanism != r2.Mechanism {
+		return false
+	}
+	if r1.Async != r2.Async {
+		return false
+	}
+	if r1.Expanded != r2.Expanded {
+		return false
+	}
+	return true
+}
+
 // id returns the ID of the Rel.
 func (r Rel) id() string {
 	return relIdFromIds(r.From.Id, r.To.Id)

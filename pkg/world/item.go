@@ -113,6 +113,28 @@ func ItemFromString(s string) (Item, error) {
 	return itemSet(Item{Id: p.InputAttributes.ResourceId}, ItemParamsFromInput(p.InputAttributes))
 }
 
+func ItemEqual(i1, i2 Item) bool {
+	if i1.Id != i2.Id {
+		return false
+	}
+	if i1.External != i2.External {
+		return false
+	}
+	if i1.Type != i2.Type {
+		return false
+	}
+	if i1.Name != i2.Name {
+		return false
+	}
+	if i1.Mechanism != i2.Mechanism {
+		return false
+	}
+	if i1.Expanded != i2.Expanded {
+		return false
+	}
+	return true
+}
+
 // id returns the ID of the Item.
 func (i Item) id() string {
 	return i.Id

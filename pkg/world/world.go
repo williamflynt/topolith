@@ -6,6 +6,7 @@ import (
 	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/grammar"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -154,6 +155,73 @@ func FromString(s string) (World, error) {
 	}
 
 	return w, nil
+}
+
+func WorldEqual(w1, w2 World) bool {
+	// Compare basic info.
+	if w1.Version() != w2.Version() {
+		return false
+	}
+	if w1.Id() != w2.Id() {
+		return false
+	}
+	if w1.Name() != w2.Name() {
+		return false
+	}
+	if w1.Expanded() != w2.Expanded() {
+		return false
+	}
+
+	// Compare items.
+	items1 := w1.ItemList(0)
+	items2 := w2.ItemList(0)
+	if len(items1) != len(items2) {
+		return false
+	}
+	sort.Slice(items1, func(i, j int) bool {
+		return items1[i].Id < items1[j].Id
+	})
+	sort.Slice(items2, func(i, j int) bool {
+		return items2[i].Id < items2[j].Id
+	})
+	for i, item1 := range items1 {
+		if !ItemEqual(item1, items2[i]) {
+			return false
+		}
+		p1, _ := w1.Parent(item1.Id)
+		p2, _ := w2.Parent(item1.Id)
+		if p1 != p2 {
+			return false
+		}
+		c1, _ := w1.Components(item1.Id)
+		c2, _ := w2.Components(item1.Id)
+		slices.Sort(c1)
+		slices.Sort(c2)
+		for j := range c1 {
+			if c1[j] != c2[j] {
+				return false
+			}
+		}
+	}
+
+	// Compare relationships.
+	rels1 := w1.RelList(0)
+	rels2 := w2.RelList(0)
+	if len(rels1) != len(rels2) {
+		return false
+	}
+	sort.Slice(rels1, func(i, j int) bool {
+		return rels1[i].From.Id < rels1[j].From.Id
+	})
+	sort.Slice(rels2, func(i, j int) bool {
+		return rels2[i].From.Id < rels2[j].From.Id
+	})
+	for i, rel1 := range rels1 {
+		if !RelEqual(rel1, rels2[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // world is the internal implementation of the WorldWithBoth interface.

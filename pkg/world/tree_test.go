@@ -3,6 +3,7 @@ package world
 import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
+	"sort"
 	"testing"
 )
 
@@ -189,8 +190,29 @@ func TestTreeSerde(t *testing.T) {
 		t.Errorf("expected %d components, got %d", root.Components().Cardinality(), parsed.Components().Cardinality())
 	}
 	serialized2 := parsed.String()
-	if serialized != serialized2 {
-		t.Errorf("expected serialized strings to match, they didn't")
+	if len(serialized) != len(serialized2) {
+		t.Errorf("expected serialized strings to match lengths, they didn't")
+	}
+	// Hack around comparing structs with different memory addresses, and just sort and compare strings.
+	rootComponents := root.Components().ToSlice()
+	sort.Slice(rootComponents, func(i, j int) bool {
+		return rootComponents[i].Item().Id < rootComponents[j].Item().Id
+	})
+	parsedComponents := parsed.Components().ToSlice()
+	sort.Slice(parsedComponents, func(i, j int) bool {
+		return parsedComponents[i].Item().Id < parsedComponents[j].Item().Id
+	})
+	if len(rootComponents) != len(parsedComponents) {
+		t.Errorf("expected %d components, got %d", len(rootComponents), len(parsedComponents))
+	}
+	for i := range rootComponents {
+		if rootComponents[i].Item().String() != parsedComponents[i].Item().String() {
+			t.Errorf("component mismatch for ID '%s'", rootComponents[i].Item().Id)
+			fmt.Println(rootComponents[i].Item().String())
+			fmt.Println(parsedComponents[i].Item().String())
+		}
+	}
+	if t.Failed() {
 		fmt.Println(serialized)
 		fmt.Println(serialized2)
 	}

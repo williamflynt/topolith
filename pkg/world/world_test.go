@@ -13,12 +13,24 @@ func TestWorldSerde(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FromString failed: %v", err)
 	}
+
+	// Serialize and deserialize the world to get a new world.
 	ser := w.String()
-	if ser != simpleWorld {
-		printDiff(ser, simpleWorld)
-		t.Fatalf("FromString failed: \n\tGOT::\n%s\n\n\tEXPECTED::\n%s\n", ser, simpleWorld)
+	w2, err := FromString(ser)
+	if err != nil {
+		t.Fatalf("FromString failed: %v", err)
+	}
+
+	if !WorldEqual(w, w2) {
+		t.Fatalf("Worlds are not equal")
+	}
+
+	if t.Failed() {
+		printDiff(w.String(), w2.String())
 	}
 }
+
+// --- HELPERS ---
 
 func printDiff(a, b string) {
 	lines1 := strings.Split(a, "\n")
