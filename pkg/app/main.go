@@ -25,7 +25,7 @@ func NewApp(world world.World) (App, error) {
 		world:       world,
 		commands:    make([]Command, 0),
 		commandsIdx: -1,
-		persistance: persistence.NewFilePersistence(),
+		persistence: persistence.NewFilePersistence(),
 	}, nil
 }
 
@@ -34,7 +34,7 @@ type app struct {
 	world       world.World // world is the world.World associated with this App.
 	commands    []Command   // commands is a list of Command that have been executed.
 	commandsIdx int         // commandsIdx is the index of the last executed Command in the commands list. It must initialize to -1.
-	persistance persistence.Persistence
+	persistence persistence.Persistence
 }
 
 func (h *app) World() world.World {
@@ -81,7 +81,7 @@ func (h *app) CanRedo() bool {
 }
 
 func (h *app) Persistence() persistence.Persistence {
-	return h.persistance
+	return h.persistence
 }
 
 // --- INTERNAL ---

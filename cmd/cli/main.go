@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// executor handles the unparsed input to the REPL.
+// executor handles the unparsed input to the CLI.
 func executor(app app.App) prompt.Executor {
 	return func(input string) {
 		input = strings.TrimSpace(input)
@@ -29,7 +29,7 @@ func executor(app app.App) prompt.Executor {
 	}
 }
 
-// completer handles the autocompletion for the REPL.
+// completer handles the autocompletion for the CLI.
 func completer(app app.App) prompt.Completer {
 	return func(d prompt.Document) []prompt.Suggest {
 		text := d.TextBeforeCursor()

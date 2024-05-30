@@ -14,7 +14,7 @@ type Node struct {
 	Children []Node
 }
 
-// InputAttributes is a struct that holds information from the parsed input to the REPL.
+// InputAttributes is a struct that holds information from the parsed input to the CLI.
 type InputAttributes struct {
 	ResourceType string            `json:"resourceType"`
 	ResourceId   string            `json:"resourceId"`
@@ -43,7 +43,7 @@ type ResponseStatus struct {
 	Message string `json:"message"`
 }
 
-// Parse function to validate and pull information from the input to the REPL.
+// Parse function to validate and pull information from the input to the CLI.
 func Parse(s string) (*Parser, error) {
 	p := &Parser{
 		Buffer: s,
