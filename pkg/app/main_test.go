@@ -12,7 +12,6 @@ func TestBareWorldResponse(t *testing.T) {
 		t.Fatalf("error creating app: %v", err)
 	}
 	response := testApp.Exec("world")
-	// TODO - a perfectly fine WORLDOBJECT response is parsing as a Command (world fetch) here - why?
 	p, err := grammar.Parse(response)
 	if err != nil {
 		t.Fatalf("error parsing response: %v", err)
