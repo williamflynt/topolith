@@ -1,7 +1,6 @@
-package persistance
+package persistence
 
 import (
-	"encoding/json"
 	"github.com/williamflynt/topolith/pkg/world"
 	"os"
 	"path/filepath"
@@ -45,32 +44,23 @@ func (fp *filePersistence) Save(world world.World) error {
 		return err
 	}
 
-	filePath := filepath.Join(fp.directory, world.Name()+".json")
-	data, err := json.Marshal(world)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filePath, data, 0644)
+	filePath := filepath.Join(fp.directory, world.Name()+".world")
+	data := world.String()
+	return os.WriteFile(filePath, []byte(data), 0644)
 }
 
 // Load loads a world from a file.
 func (fp *filePersistence) Load(name string) (world.World, error) {
 	filePath := name
-	if filepath.Ext(name) != ".json" {
-		filePath = filepath.Join(fp.directory, name+".json")
+	if filepath.Ext(name) != ".world" {
+		filePath = filepath.Join(fp.directory, name+".world")
 	}
-	w := world.CreateWorld("default")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return w, err
+		return nil, err
 	}
-
-	if err := json.Unmarshal(data, w); err != nil {
-		return w, err
-	}
-
-	return w, nil
+	println(string(data))
+	return world.FromString(string(data))
 }
 
 // ListWorlds scans the directory for world files and returns their names.
@@ -82,7 +72,7 @@ func (fp *filePersistence) ListWorlds() ([]string, error) {
 
 	var worlds []string
 	for _, file := range files {
-		if filepath.Ext(file.Name()) == ".json" {
+		if filepath.Ext(file.Name()) == ".world" {
 			worlds = append(worlds, file.Name()[:len(file.Name())-len(filepath.Ext(file.Name()))])
 		}
 	}

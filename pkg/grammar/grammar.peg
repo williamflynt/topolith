@@ -162,8 +162,8 @@ RelParams   <- (RelParam)+
 
 WorldParamVersion <- VERSION EQUALS <Number>        { p.WorldParams["version"] = cleanString(text) }
 WorldParamId      <- ID EQUALS <StringLike>         { p.WorldParams["id"] = strings.TrimSpace(text) }
-WorldParamName    <- NAME EQUALS <StringLike>       { p.WorldParams["name"] = strings.TrimSpace(text) }
-WorldParamExpanded <- EXPANDED EQUALS <StringLike>  { p.WorldParams["expanded"] = strings.TrimSpace(text) }
+WorldParamName    <- NAME EQUALS <StringLike?>       { p.WorldParams["name"] = strings.TrimSpace(text) }
+WorldParamExpanded <- EXPANDED EQUALS <StringLike?> { p.WorldParams["expanded"] = strings.TrimSpace(text) }
 
 ItemParam
   <- EXTERNAL EQUALS <Boolean>      { p.Params["external"] = cleanString(text) }

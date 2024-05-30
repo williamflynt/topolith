@@ -84,7 +84,7 @@ type Item struct {
 }
 
 func (i Item) String() string {
-	item := fmt.Sprintf(`item "%s" external=%t`, i.Id, i.External)
+	item := fmt.Sprintf(`item "%s"`, i.Id)
 	paramRepr := make([]string, 0)
 	if i.Type > 0 {
 		paramRepr = append(paramRepr, fmt.Sprintf(`type=%s`, StringFromItemType(i.Type)))
@@ -97,6 +97,9 @@ func (i Item) String() string {
 	}
 	if i.Expanded != "" {
 		paramRepr = append(paramRepr, fmt.Sprintf(`expanded="%s"`, i.Expanded))
+	}
+	if i.External {
+		paramRepr = append(paramRepr, `external=true`)
 	}
 	if len(paramRepr) > 0 {
 		item += " " + strings.Join(paramRepr, " ")

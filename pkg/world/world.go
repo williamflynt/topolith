@@ -195,6 +195,9 @@ func WorldEqual(w1, w2 World) bool {
 		}
 		c1, _ := w1.Components(item1.Id)
 		c2, _ := w2.Components(item1.Id)
+		if len(c1) != len(c2) {
+			return false
+		}
 		slices.Sort(c1)
 		slices.Sort(c2)
 		for j := range c1 {

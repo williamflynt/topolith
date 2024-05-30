@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/williamflynt/topolith/pkg/errors"
 	"github.com/williamflynt/topolith/pkg/grammar"
-	"github.com/williamflynt/topolith/pkg/persistance"
+	"github.com/williamflynt/topolith/pkg/persistence"
 	"github.com/williamflynt/topolith/pkg/world"
 )
 
@@ -14,7 +14,7 @@ type App interface {
 	History() []Command                   // History returns the list of Command that have been executed for the present state of the world.World.
 	CanUndo() bool                        // CanUndo indicates whether more Command objects exist to Undo.
 	CanRedo() bool                        // CanRedo indicates whether more Command objects exist to Redo.
-	Persistence() persistance.Persistence // Persistence returns the persistance.Persistence object associated with this App.
+	Persistence() persistence.Persistence // Persistence returns the persistence.Persistence object associated with this App.
 }
 
 func NewApp(world world.World) (App, error) {
@@ -25,7 +25,7 @@ func NewApp(world world.World) (App, error) {
 		world:       world,
 		commands:    make([]Command, 0),
 		commandsIdx: -1,
-		persistance: persistance.NewFilePersistence(),
+		persistance: persistence.NewFilePersistence(),
 	}, nil
 }
 
@@ -34,7 +34,7 @@ type app struct {
 	world       world.World // world is the world.World associated with this App.
 	commands    []Command   // commands is a list of Command that have been executed.
 	commandsIdx int         // commandsIdx is the index of the last executed Command in the commands list. It must initialize to -1.
-	persistance persistance.Persistence
+	persistance persistence.Persistence
 }
 
 func (h *app) World() world.World {
@@ -80,7 +80,7 @@ func (h *app) CanRedo() bool {
 	return h.commandsIdx < len(h.commands)-1
 }
 
-func (h *app) Persistence() persistance.Persistence {
+func (h *app) Persistence() persistence.Persistence {
 	return h.persistance
 }
 

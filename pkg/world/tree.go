@@ -33,7 +33,7 @@ type Tree interface {
 // We can also get all the items in a World from parsing the Tree string!
 //
 // Example of a Tree string:
-// `tree{nil::[tree{item "2" external=false::[tree{item "1" external=false::[]}]} tree{item "3" external=false::[]}]}`
+// `tree{nil::[tree{item "2"::[tree{item "1"::[]}]} tree{item "3"::[]}]}`
 func TreeFromString(s string) (Tree, map[string]Item, error) {
 	if s == "" {
 		return emptyTree, map[string]Item{}, nil

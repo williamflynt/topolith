@@ -11,7 +11,7 @@ import (
 // TODO(wf 27 May 2024): Test responses, errors, World representation and parsing.
 
 var simpleTree = "tree{nil::[tree{item \"2\"::[tree{item \"1\"::[]}]} tree{item \"3\"::[]}]}"
-var simpleWorld = "version=1\nid=1\nname=worldname\nexpanded=\"this is expanded data\"\ntree{nil::[tree{item \"2\" external=false::[tree{item \"1\" external=false::[]}]} tree{item \"3\" external=false::[]}]}\nrel \"3\" \"2\"\nrel \"1\" \"2\""
+var simpleWorld = "version=1\nid=1\nname=worldname\nexpanded=\"this is expanded data\"\ntree{nil::[tree{item \"2\"::[tree{item \"1\"::[]}]} tree{item \"3\"::[]}]}\nrel \"3\" \"2\"\nrel \"1\" \"2\""
 
 var testCommands = []struct {
 	In  string
@@ -55,7 +55,7 @@ var testResponses = []struct {
 	Err bool
 	Out Response
 }{
-	{In: "item abc123 external=false\n$$$$\n200 ok \"all ok\"", Err: false, Out: Response{Object: ResponseObject{Type: "item", Repr: `item abc123 external=false`}, Status: ResponseStatus{Code: 200, Message: "all ok"}}},
+	{In: "item abc123\n$$$$\n200 ok \"all ok\"", Err: false, Out: Response{Object: ResponseObject{Type: "item", Repr: `item abc123`}, Status: ResponseStatus{Code: 200, Message: "all ok"}}},
 	{In: "rel abc123 \"def456\" verb=\"writes to\" async=false\n$$$$\n200 ok \"all ok\"", Err: false, Out: Response{Object: ResponseObject{Type: "rel", Repr: `rel abc123 "def456" verb="writes to" async=false`}, Status: ResponseStatus{Code: 200, Message: "all ok"}}},
 	{In: "$$world\n" + simpleWorld + "\nendworld$$" + "\n$$$$\n200 ok ", Err: false, Out: Response{Object: ResponseObject{Type: "world", Repr: simpleWorld}, Status: ResponseStatus{Code: 200, Message: ""}}},
 	{In: "a b c d" + "\n$$$$\n200 ok ", Err: false, Out: Response{Object: ResponseObject{Type: "ids", Repr: `["a","b","c","d"]`}, Status: ResponseStatus{Code: 200, Message: ""}}},
