@@ -38,7 +38,7 @@ const (
 	ruleIdentifierListObject
 	ruleTree
 	ruleNil
-	ruleErrorOrOkay
+	ruleStatusObject
 	ruleErrCode
 	ruleLimit
 	ruleIdentifier
@@ -222,7 +222,7 @@ var rul3s = [...]string{
 	"IdentifierListObject",
 	"Tree",
 	"Nil",
-	"ErrorOrOkay",
+	"StatusObject",
 	"ErrCode",
 	"Limit",
 	"Identifier",
@@ -640,20 +640,21 @@ func (p *Parser) Execute() {
 			p.InputAttributes.Verb = "create-or-set"
 		case ruleAction7:
 
+			p.StmtType = "WorldObject"
 			p.Response.Object.Type = "world"
 			p.Response.Object.Repr = strings.Join(append([]string{p.WorldParams["paramString"], p.TreeString}, p.RelStrings...), "\n")
 
 		case ruleAction8:
 
 			p.Response.Object.Type = "item"
-			p.Response.Object.Repr = cleanString(text)
+			p.Response.Object.Repr = strings.TrimSpace(text)
 			p.ItemStrings = append(p.ItemStrings, strings.TrimSpace(text))
 			p.currentId = p.InputAttributes.ResourceId
 			p.nodeStack = append(p.nodeStack, Node{Id: p.currentId, Children: []Node{}})
 
 		case ruleAction9:
 			p.Response.Object.Type = "rel"
-			p.Response.Object.Repr = cleanString(text)
+			p.Response.Object.Repr = strings.TrimSpace(text)
 			p.RelStrings = append(p.RelStrings, strings.TrimSpace(text))
 		case ruleAction10:
 			p.Response.Object.Type = "ids"
@@ -682,6 +683,7 @@ func (p *Parser) Execute() {
 
 		case ruleAction13:
 
+			p.StmtType = "Status"
 			p.Response.Status.Message = cleanString(text)
 
 		case ruleAction14:
@@ -709,7 +711,7 @@ func (p *Parser) Execute() {
 		case ruleAction20:
 			p.WorldParams["version"] = cleanString(text)
 		case ruleAction21:
-			p.WorldParams["id"] = strings.TrimSpace(text)
+			p.WorldParams["id"] = cleanString(text)
 		case ruleAction22:
 			p.WorldParams["name"] = strings.TrimSpace(text)
 		case ruleAction23:
@@ -883,7 +885,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 
 	_rules = [...]func() bool{
 		nil,
-		/* 0 Valid <- <(Command / Response / WorldObject / Tree)> */
+		/* 0 Valid <- <(Command / Response / ((&('t') Tree) | (&('\t' | '\n' | '\r' | ' ' | '$') WorldObject) | (&('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') StatusObject)))> */
 		func() bool {
 			position0, tokenIndex0 := position, tokenIndex
 			{
@@ -1814,53 +1816,8 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 						if !_rules[rule_]() {
 							goto l129
 						}
-						{
-							position145 := position
-							{
-								position146 := position
-								{
-									position147 := position
-									if !_rules[ruleNumber]() {
-										goto l129
-									}
-									add(rulePegText, position147)
-								}
-								{
-									add(ruleAction14, position)
-								}
-								add(ruleErrCode, position146)
-							}
-							{
-								position149, tokenIndex149 := position, tokenIndex
-								if !_rules[ruleERROR]() {
-									goto l150
-								}
-								goto l149
-							l150:
-								position, tokenIndex = position149, tokenIndex149
-								if !_rules[ruleOK]() {
-									goto l129
-								}
-							}
-						l149:
-							{
-								position151 := position
-							l152:
-								{
-									position153, tokenIndex153 := position, tokenIndex
-									if !_rules[ruleStringLike]() {
-										goto l153
-									}
-									goto l152
-								l153:
-									position, tokenIndex = position153, tokenIndex153
-								}
-								add(rulePegText, position151)
-							}
-							{
-								add(ruleAction13, position)
-							}
-							add(ruleErrorOrOkay, position145)
+						if !_rules[ruleStatusObject]() {
+							goto l129
 						}
 						if !_rules[ruleEND]() {
 							goto l129
@@ -1873,15 +1830,23 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 					goto l2
 				l129:
 					position, tokenIndex = position2, tokenIndex2
-					if !_rules[ruleWorldObject]() {
-						goto l156
+					{
+						switch buffer[position] {
+						case 't':
+							if !_rules[ruleTree]() {
+								goto l0
+							}
+						case '\t', '\n', '\r', ' ', '$':
+							if !_rules[ruleWorldObject]() {
+								goto l0
+							}
+						default:
+							if !_rules[ruleStatusObject]() {
+								goto l0
+							}
+						}
 					}
-					goto l2
-				l156:
-					position, tokenIndex = position2, tokenIndex2
-					if !_rules[ruleTree]() {
-						goto l0
-					}
+
 				}
 			l2:
 				add(ruleValid, position1)
@@ -1891,7 +1856,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 			position, tokenIndex = position0, tokenIndex0
 			return false
 		},
-		/* 1 Response <- <(Objects? _ DELIMITER DELIMITER _ ErrorOrOkay END Action0)> */
+		/* 1 Response <- <(Objects? _ DELIMITER DELIMITER _ StatusObject END Action0)> */
 		nil,
 		/* 2 Command <- <(_ (Mutation / TreeMutation / Query / StateBound) Flag* END Action1)> */
 		nil,
@@ -1917,395 +1882,449 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 		nil,
 		/* 13 WorldObject <- <(BeginWorld WorldParams Tree RelObject* EndWorld Action7)> */
 		func() bool {
-			position169, tokenIndex169 := position, tokenIndex
+			position159, tokenIndex159 := position, tokenIndex
 			{
-				position170 := position
+				position160 := position
 				{
-					position171 := position
+					position161 := position
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
 					if !_rules[ruleDELIMITER]() {
-						goto l169
+						goto l159
 					}
 					if !_rules[ruleWORLD]() {
-						goto l169
+						goto l159
 					}
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
-					add(ruleBeginWorld, position171)
+					add(ruleBeginWorld, position161)
 				}
 				{
-					position172 := position
+					position162 := position
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
 					{
-						position173 := position
+						position163 := position
 						{
-							position174 := position
+							position164 := position
 							if buffer[position] != rune('v') {
-								goto l169
+								goto l159
 							}
 							position++
 							if buffer[position] != rune('e') {
-								goto l169
+								goto l159
 							}
 							position++
 							if buffer[position] != rune('r') {
-								goto l169
+								goto l159
 							}
 							position++
 							if buffer[position] != rune('s') {
-								goto l169
+								goto l159
 							}
 							position++
 							if buffer[position] != rune('i') {
-								goto l169
+								goto l159
 							}
 							position++
 							if buffer[position] != rune('o') {
-								goto l169
+								goto l159
 							}
 							position++
 							if buffer[position] != rune('n') {
-								goto l169
+								goto l159
 							}
 							position++
-							add(ruleVERSION, position174)
+							add(ruleVERSION, position164)
 						}
 						if !_rules[ruleEQUALS]() {
-							goto l169
+							goto l159
 						}
 						{
-							position175 := position
+							position165 := position
 							if !_rules[ruleNumber]() {
-								goto l169
+								goto l159
 							}
-							add(rulePegText, position175)
+							add(rulePegText, position165)
 						}
 						{
 							add(ruleAction20, position)
 						}
-						add(ruleWorldParamVersion, position173)
+						add(ruleWorldParamVersion, position163)
 					}
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
 					{
-						position177 := position
+						position167 := position
 						{
-							position178 := position
+							position168 := position
 							if buffer[position] != rune('i') {
-								goto l169
+								goto l159
 							}
 							position++
 							if buffer[position] != rune('d') {
-								goto l169
+								goto l159
 							}
 							position++
-							add(ruleID, position178)
+							add(ruleID, position168)
 						}
 						if !_rules[ruleEQUALS]() {
-							goto l169
+							goto l159
 						}
 						{
-							position179 := position
+							position169 := position
 							if !_rules[ruleStringLike]() {
-								goto l169
+								goto l159
 							}
-							add(rulePegText, position179)
+							add(rulePegText, position169)
 						}
 						{
 							add(ruleAction21, position)
 						}
-						add(ruleWorldParamId, position177)
+						add(ruleWorldParamId, position167)
 					}
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
 					{
-						position181 := position
+						position171 := position
 						if !_rules[ruleNAME]() {
-							goto l169
+							goto l159
 						}
 						if !_rules[ruleEQUALS]() {
-							goto l169
+							goto l159
 						}
 						{
-							position182 := position
+							position172 := position
 							{
-								position183, tokenIndex183 := position, tokenIndex
+								position173, tokenIndex173 := position, tokenIndex
 								if !_rules[ruleStringLike]() {
-									goto l183
+									goto l173
 								}
-								goto l184
-							l183:
-								position, tokenIndex = position183, tokenIndex183
+								goto l174
+							l173:
+								position, tokenIndex = position173, tokenIndex173
 							}
-						l184:
-							add(rulePegText, position182)
+						l174:
+							add(rulePegText, position172)
 						}
 						{
 							add(ruleAction22, position)
 						}
-						add(ruleWorldParamName, position181)
+						add(ruleWorldParamName, position171)
 					}
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
 					{
-						position186 := position
+						position176 := position
 						if !_rules[ruleEXPANDED]() {
-							goto l169
+							goto l159
 						}
 						if !_rules[ruleEQUALS]() {
-							goto l169
+							goto l159
 						}
 						{
-							position187 := position
+							position177 := position
 							{
-								position188, tokenIndex188 := position, tokenIndex
+								position178, tokenIndex178 := position, tokenIndex
 								if !_rules[ruleStringLike]() {
-									goto l188
+									goto l178
 								}
-								goto l189
-							l188:
-								position, tokenIndex = position188, tokenIndex188
+								goto l179
+							l178:
+								position, tokenIndex = position178, tokenIndex178
 							}
-						l189:
-							add(rulePegText, position187)
+						l179:
+							add(rulePegText, position177)
 						}
 						{
 							add(ruleAction23, position)
 						}
-						add(ruleWorldParamExpanded, position186)
+						add(ruleWorldParamExpanded, position176)
 					}
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
 					{
 						add(ruleAction19, position)
 					}
-					add(ruleWorldParams, position172)
+					add(ruleWorldParams, position162)
 				}
 				if !_rules[ruleTree]() {
-					goto l169
+					goto l159
 				}
-			l192:
+			l182:
 				{
-					position193, tokenIndex193 := position, tokenIndex
+					position183, tokenIndex183 := position, tokenIndex
 					if !_rules[ruleRelObject]() {
-						goto l193
+						goto l183
 					}
-					goto l192
-				l193:
-					position, tokenIndex = position193, tokenIndex193
+					goto l182
+				l183:
+					position, tokenIndex = position183, tokenIndex183
 				}
 				{
-					position194 := position
+					position184 := position
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
 					if !_rules[ruleENDWORLD]() {
-						goto l169
+						goto l159
 					}
 					if !_rules[ruleDELIMITER]() {
-						goto l169
+						goto l159
 					}
 					if !_rules[rule_]() {
-						goto l169
+						goto l159
 					}
-					add(ruleEndWorld, position194)
+					add(ruleEndWorld, position184)
 				}
 				{
 					add(ruleAction7, position)
 				}
-				add(ruleWorldObject, position170)
+				add(ruleWorldObject, position160)
 			}
 			return true
-		l169:
-			position, tokenIndex = position169, tokenIndex169
+		l159:
+			position, tokenIndex = position159, tokenIndex159
 			return false
 		},
 		/* 14 ItemObject <- <(<(Item Identifier ItemParams?)> Action8)> */
 		func() bool {
-			position196, tokenIndex196 := position, tokenIndex
+			position186, tokenIndex186 := position, tokenIndex
 			{
-				position197 := position
+				position187 := position
 				{
-					position198 := position
+					position188 := position
 					if !_rules[ruleItem]() {
-						goto l196
+						goto l186
 					}
 					if !_rules[ruleIdentifier]() {
-						goto l196
+						goto l186
 					}
 					{
-						position199, tokenIndex199 := position, tokenIndex
+						position189, tokenIndex189 := position, tokenIndex
 						if !_rules[ruleItemParams]() {
-							goto l199
+							goto l189
 						}
-						goto l200
-					l199:
-						position, tokenIndex = position199, tokenIndex199
+						goto l190
+					l189:
+						position, tokenIndex = position189, tokenIndex189
 					}
-				l200:
-					add(rulePegText, position198)
+				l190:
+					add(rulePegText, position188)
 				}
 				{
 					add(ruleAction8, position)
 				}
-				add(ruleItemObject, position197)
+				add(ruleItemObject, position187)
 			}
 			return true
-		l196:
-			position, tokenIndex = position196, tokenIndex196
+		l186:
+			position, tokenIndex = position186, tokenIndex186
 			return false
 		},
 		/* 15 RelObject <- <(<(Rel DualIdentifier RelParams?)> Action9)> */
 		func() bool {
-			position202, tokenIndex202 := position, tokenIndex
+			position192, tokenIndex192 := position, tokenIndex
 			{
-				position203 := position
+				position193 := position
 				{
-					position204 := position
+					position194 := position
 					if !_rules[ruleRel]() {
-						goto l202
+						goto l192
 					}
 					if !_rules[ruleDualIdentifier]() {
-						goto l202
+						goto l192
 					}
 					{
-						position205, tokenIndex205 := position, tokenIndex
+						position195, tokenIndex195 := position, tokenIndex
 						if !_rules[ruleRelParams]() {
-							goto l205
+							goto l195
 						}
-						goto l206
-					l205:
-						position, tokenIndex = position205, tokenIndex205
+						goto l196
+					l195:
+						position, tokenIndex = position195, tokenIndex195
 					}
-				l206:
-					add(rulePegText, position204)
+				l196:
+					add(rulePegText, position194)
 				}
 				{
 					add(ruleAction9, position)
 				}
-				add(ruleRelObject, position203)
+				add(ruleRelObject, position193)
 			}
 			return true
-		l202:
-			position, tokenIndex = position202, tokenIndex202
+		l192:
+			position, tokenIndex = position192, tokenIndex192
 			return false
 		},
 		/* 16 IdentifierListObject <- <(IdentifierList Action10)> */
 		nil,
 		/* 17 Tree <- <(<('t' 'r' 'e' 'e' '{' (Nil / ItemObject) (':' ':' '[') Tree* (']' '}'))> _ Action11)> */
 		func() bool {
-			position209, tokenIndex209 := position, tokenIndex
+			position199, tokenIndex199 := position, tokenIndex
 			{
-				position210 := position
+				position200 := position
 				{
-					position211 := position
+					position201 := position
 					if buffer[position] != rune('t') {
-						goto l209
+						goto l199
 					}
 					position++
 					if buffer[position] != rune('r') {
-						goto l209
+						goto l199
 					}
 					position++
 					if buffer[position] != rune('e') {
-						goto l209
+						goto l199
 					}
 					position++
 					if buffer[position] != rune('e') {
-						goto l209
+						goto l199
 					}
 					position++
 					if buffer[position] != rune('{') {
-						goto l209
+						goto l199
 					}
 					position++
 					{
-						position212, tokenIndex212 := position, tokenIndex
+						position202, tokenIndex202 := position, tokenIndex
 						{
-							position214 := position
+							position204 := position
 							if buffer[position] != rune('n') {
-								goto l213
+								goto l203
 							}
 							position++
 							if buffer[position] != rune('i') {
-								goto l213
+								goto l203
 							}
 							position++
 							if buffer[position] != rune('l') {
-								goto l213
+								goto l203
 							}
 							position++
 							{
 								add(ruleAction12, position)
 							}
-							add(ruleNil, position214)
+							add(ruleNil, position204)
 						}
-						goto l212
-					l213:
-						position, tokenIndex = position212, tokenIndex212
+						goto l202
+					l203:
+						position, tokenIndex = position202, tokenIndex202
 						if !_rules[ruleItemObject]() {
-							goto l209
+							goto l199
 						}
 					}
-				l212:
+				l202:
 					if buffer[position] != rune(':') {
-						goto l209
+						goto l199
 					}
 					position++
 					if buffer[position] != rune(':') {
-						goto l209
+						goto l199
 					}
 					position++
 					if buffer[position] != rune('[') {
-						goto l209
+						goto l199
 					}
 					position++
-				l216:
+				l206:
 					{
-						position217, tokenIndex217 := position, tokenIndex
+						position207, tokenIndex207 := position, tokenIndex
 						if !_rules[ruleTree]() {
-							goto l217
+							goto l207
 						}
-						goto l216
-					l217:
-						position, tokenIndex = position217, tokenIndex217
+						goto l206
+					l207:
+						position, tokenIndex = position207, tokenIndex207
 					}
 					if buffer[position] != rune(']') {
-						goto l209
+						goto l199
 					}
 					position++
 					if buffer[position] != rune('}') {
-						goto l209
+						goto l199
 					}
 					position++
-					add(rulePegText, position211)
+					add(rulePegText, position201)
 				}
 				if !_rules[rule_]() {
-					goto l209
+					goto l199
 				}
 				{
 					add(ruleAction11, position)
 				}
-				add(ruleTree, position210)
+				add(ruleTree, position200)
 			}
 			return true
-		l209:
-			position, tokenIndex = position209, tokenIndex209
+		l199:
+			position, tokenIndex = position199, tokenIndex199
 			return false
 		},
 		/* 18 Nil <- <('n' 'i' 'l' Action12)> */
 		nil,
-		/* 19 ErrorOrOkay <- <(ErrCode (ERROR / OK) <StringLike*> Action13)> */
-		nil,
+		/* 19 StatusObject <- <(ErrCode (ERROR / OK) <StringLike*> Action13)> */
+		func() bool {
+			position210, tokenIndex210 := position, tokenIndex
+			{
+				position211 := position
+				{
+					position212 := position
+					{
+						position213 := position
+						if !_rules[ruleNumber]() {
+							goto l210
+						}
+						add(rulePegText, position213)
+					}
+					{
+						add(ruleAction14, position)
+					}
+					add(ruleErrCode, position212)
+				}
+				{
+					position215, tokenIndex215 := position, tokenIndex
+					if !_rules[ruleERROR]() {
+						goto l216
+					}
+					goto l215
+				l216:
+					position, tokenIndex = position215, tokenIndex215
+					if !_rules[ruleOK]() {
+						goto l210
+					}
+				}
+			l215:
+				{
+					position217 := position
+				l218:
+					{
+						position219, tokenIndex219 := position, tokenIndex
+						if !_rules[ruleStringLike]() {
+							goto l219
+						}
+						goto l218
+					l219:
+						position, tokenIndex = position219, tokenIndex219
+					}
+					add(rulePegText, position217)
+				}
+				{
+					add(ruleAction13, position)
+				}
+				add(ruleStatusObject, position211)
+			}
+			return true
+		l210:
+			position, tokenIndex = position210, tokenIndex210
+			return false
+		},
 		/* 20 ErrCode <- <(<Number> Action14)> */
 		nil,
 		/* 21 Limit <- <(<Number> Action15)> */
@@ -5312,17 +5331,17 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 		/* 129 Action6 <- <{ p.InputAttributes.Verb = "create-or-set" }> */
 		nil,
 		/* 130 Action7 <- <{
-		   p.Response.Object.Type = "world"
+		   p.StmtType = "WorldObject"; p.Response.Object.Type = "world"
 		   p.Response.Object.Repr = strings.Join(append([]string{p.WorldParams["paramString"], p.TreeString}, p.RelStrings...), "\n")
 		 }> */
 		nil,
 		/* 131 Action8 <- <{
-		   p.Response.Object.Type = "item"; p.Response.Object.Repr = cleanString(text); p.ItemStrings = append(p.ItemStrings, strings.TrimSpace(text))
+		   p.Response.Object.Type = "item"; p.Response.Object.Repr = strings.TrimSpace(text); p.ItemStrings = append(p.ItemStrings, strings.TrimSpace(text))
 		   p.currentId = p.InputAttributes.ResourceId
 		   p.nodeStack = append(p.nodeStack, Node{Id: p.currentId, Children: []Node{}})
 		 }> */
 		nil,
-		/* 132 Action9 <- <{ p.Response.Object.Type = "rel"; p.Response.Object.Repr = cleanString(text); p.RelStrings = append(p.RelStrings, strings.TrimSpace(text)) }> */
+		/* 132 Action9 <- <{ p.Response.Object.Type = "rel"; p.Response.Object.Repr = strings.TrimSpace(text); p.RelStrings = append(p.RelStrings, strings.TrimSpace(text)) }> */
 		nil,
 		/* 133 Action10 <- <{ p.Response.Object.Type = "ids"; b, _ := json.Marshal(p.InputAttributes.ResourceIds); p.Response.Object.Repr = string(b) }> */
 		nil,
@@ -5345,6 +5364,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 		 }> */
 		nil,
 		/* 136 Action13 <- <{
+		   p.StmtType = "Status"
 		   p.Response.Status.Message = cleanString(text)
 		 }> */
 		nil,
@@ -5372,7 +5392,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 		nil,
 		/* 143 Action20 <- <{ p.WorldParams["version"] = cleanString(text) }> */
 		nil,
-		/* 144 Action21 <- <{ p.WorldParams["id"] = strings.TrimSpace(text) }> */
+		/* 144 Action21 <- <{ p.WorldParams["id"] = cleanString(text) }> */
 		nil,
 		/* 145 Action22 <- <{ p.WorldParams["name"] = strings.TrimSpace(text) }> */
 		nil,

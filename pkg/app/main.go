@@ -131,5 +131,5 @@ func errOrEmpty(err error) string {
 }
 
 func okString(o fmt.Stringer, err error) string {
-	return fmt.Sprintf("%s\n200 ok %s", o, errOrEmpty(err))
+	return fmt.Sprintf("%s\n$$$$\n200 ok %s", o, errOrEmpty(err))
 }

@@ -37,6 +37,16 @@ func TestWorldSerde(t *testing.T) {
 	}
 }
 
+func TestEmptyWorldParses(t *testing.T) {
+	w, err := FromString(CreateWorld("default-world").String())
+	if err != nil {
+		t.Fatalf("FromString failed: %v", err)
+	}
+	if !WorldEqual(w, CreateWorld("default-world")) {
+		t.Fatalf("Worlds are not equal")
+	}
+}
+
 // --- HELPERS ---
 
 func printDiff(a, b string) {

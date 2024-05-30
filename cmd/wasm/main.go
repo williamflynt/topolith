@@ -7,6 +7,7 @@ import (
 	"github.com/williamflynt/topolith/pkg/app"
 	"github.com/williamflynt/topolith/pkg/grammar"
 	"github.com/williamflynt/topolith/pkg/world"
+	"strconv"
 	"syscall/js"
 )
 
@@ -23,7 +24,7 @@ func main() {
 		panic(err)
 	}
 	// Create a JavaScript function that can be called from JavaScript to send commands to the App.
-	js.Global().Set("sendCommand", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	js.Global().Set("topolithSend", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		if len(args) != 1 {
 			return "Expected one argument"
 		}
@@ -42,16 +43,24 @@ func toReply(response string) JavaScriptReply {
 		return JavaScriptReply{
 			Status: 500,
 			Data:   p.Response,
-			Error:  map[string]string{"error": err.Error()},
+			Error:  map[string]string{"code": "500", "message": err.Error()},
 			Raw:    response,
 		}
 	}
 	// TODO: Parse the response object Repr and return objects in JSON.
 	//  This will mean creating a structure for our World.Tree.
+	if p.Response.Status.Code != 200 {
+		return JavaScriptReply{
+			Status: p.Response.Status.Code,
+			Data:   p.Response,
+			Error:  map[string]string{"code": strconv.Itoa(p.Response.Status.Code), "message": p.Response.Status.Message},
+			Raw:    response,
+		}
+	}
 	return JavaScriptReply{
 		Status: p.Response.Status.Code,
 		Data:   p.Response,
-		Error:  map[string]string{"error": ""},
+		Error:  map[string]string{},
 		Raw:    response,
 	}
 }

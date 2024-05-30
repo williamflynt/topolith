@@ -3,6 +3,7 @@ package grammar
 import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/williamflynt/topolith/pkg/errors"
 	"reflect"
 	"testing"
 )
@@ -156,7 +157,7 @@ func TestResponses(t *testing.T) {
 				t.Errorf("expected object type: '%s', but got: '%s'", c.Out.Object.Type, p.Response.Object.Type)
 			}
 			if p.Response.Object.Repr != c.Out.Object.Repr {
-				t.Errorf("expected object repr: '%s', but got: '%s'", c.Out.Object.Repr, p.Response.Object.Repr)
+				t.Errorf("expected object repr:\n%s\n\ngot:\n%s", c.Out.Object.Repr, p.Response.Object.Repr)
 			}
 			if p.Response.Status.Code != c.Out.Status.Code {
 				t.Errorf("expected status code: '%d', but got: '%d'", c.Out.Status.Code, p.Response.Status.Code)
@@ -192,6 +193,9 @@ func TestTrees(t *testing.T) {
 			if p.StmtType != "Tree" {
 				t.Errorf("expected StmtType to be 'Tree', but got: '%s'", p.StmtType)
 			}
+			if p.Response.Object.Type != "tree" {
+				t.Errorf("expected StmtType to be 'Tree', but got: '%s'", p.StmtType)
+			}
 
 			// Checking specific output.
 			if !reflect.DeepEqual(p.Tree, testTree.Tree) {
@@ -214,5 +218,16 @@ func TestTrees(t *testing.T) {
 				p.PrintSyntaxTree()
 			}
 		})
+	}
+}
+
+func TestStandaloneErrors(t *testing.T) {
+	testErr := errors.New("test error").UseCode(errors.TopolithErrorInternal).WithError(errors.New("inner error")).WithDescription("test description").WithData(errors.KvPair{Key: "key", Value: "value"})
+	p, err := Parse(testErr.String())
+	if err != nil {
+		t.Fatalf("error parsing error string: %v", err)
+	}
+	if p.StmtType != "Status" {
+		t.Errorf("expected StmtType to be 'Status', but got: '%s'", p.StmtType)
 	}
 }

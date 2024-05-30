@@ -2,12 +2,28 @@ package world
 
 import (
 	"fmt"
+	"github.com/williamflynt/topolith/pkg/grammar"
 	"testing"
 )
 
 var testItems = []Item{
 	{Id: "abc123", Name: "Test Item", Expanded: "This is a test item.", External: true},
 	{Id: "abc123", Name: "Test Item", Expanded: "This is a test item."},
+}
+
+func TestItemStringParses(t *testing.T) {
+	for i, item := range testItems {
+		t.Run(fmt.Sprintf(`TestItemStringParses-%d`, i), func(t *testing.T) {
+			serialized := item.String()
+			p, err := grammar.Parse(serialized)
+			if err != nil {
+				t.Error("unexpected error:", err)
+			}
+			if p.InputAttributes.ResourceId != item.Id {
+				t.Errorf("expected ID to be 'abc123', got '%s'", p.InputAttributes.ResourceId)
+			}
+		})
+	}
 }
 
 func TestItemSerde(t *testing.T) {

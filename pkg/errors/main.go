@@ -72,6 +72,9 @@ func (e TopolithError) String() string {
 	if e.errs != nil && len(e.errs) > 0 {
 		errStrings := make([]string, 0)
 		for _, err := range e.errs {
+			if err == nil {
+				continue
+			}
 			errStrings = append(errStrings, err.Error())
 		}
 		return fmt.Sprintf(`%d error "%s: %s" errors=[%s]`, e.Code, e.Description, e.Message, fmt.Sprintf(`"%s"`, errStrings))

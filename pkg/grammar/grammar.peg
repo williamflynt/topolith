@@ -27,10 +27,10 @@ type Parser Peg {
 }
 
 Valid
-  <- Command / Response / WorldObject / Tree
+  <- Command / Response / WorldObject / Tree / StatusObject
 
 Response
-  <- Objects? _ DELIMITER DELIMITER _ ErrorOrOkay END
+  <- Objects? _ DELIMITER DELIMITER _ StatusObject END
   {
     p.StmtType = "Response"
   }
@@ -89,16 +89,16 @@ Objects
 
 WorldObject             <- BeginWorld WorldParams Tree RelObject* EndWorld
   {
-    p.Response.Object.Type = "world"
+    p.StmtType = "WorldObject"; p.Response.Object.Type = "world"
     p.Response.Object.Repr = strings.Join(append([]string{p.WorldParams["paramString"], p.TreeString}, p.RelStrings...), "\n")
   }
 ItemObject              <- <Item Identifier ItemParams?>
   {
-    p.Response.Object.Type = "item"; p.Response.Object.Repr = cleanString(text); p.ItemStrings = append(p.ItemStrings, strings.TrimSpace(text))
+    p.Response.Object.Type = "item"; p.Response.Object.Repr = strings.TrimSpace(text); p.ItemStrings = append(p.ItemStrings, strings.TrimSpace(text))
     p.currentId = p.InputAttributes.ResourceId
     p.nodeStack = append(p.nodeStack, Node{Id: p.currentId, Children: []Node{}})
   }
-RelObject               <- <Rel DualIdentifier RelParams?>      { p.Response.Object.Type = "rel"; p.Response.Object.Repr = cleanString(text); p.RelStrings = append(p.RelStrings, strings.TrimSpace(text)) }
+RelObject               <- <Rel DualIdentifier RelParams?>      { p.Response.Object.Type = "rel"; p.Response.Object.Repr = strings.TrimSpace(text); p.RelStrings = append(p.RelStrings, strings.TrimSpace(text)) }
 IdentifierListObject    <- IdentifierList                       { p.Response.Object.Type = "ids"; b, _ := json.Marshal(p.InputAttributes.ResourceIds); p.Response.Object.Repr = string(b) }
 Tree
   <- <'tree{' (Nil / ItemObject) '::[' Tree* ']}'> _
@@ -121,9 +121,10 @@ Nil <- 'nil'
       p.nodeStack = append(p.nodeStack, Node{Id: p.currentId, Children: []Node{}})
     }
 
-ErrorOrOkay
+StatusObject
   <- ErrCode (ERROR / OK) <StringLike*>
   {
+    p.StmtType = "Status"
     p.Response.Status.Message = cleanString(text)
   }
 
@@ -161,7 +162,7 @@ ItemParams  <- (ItemParam)+
 RelParams   <- (RelParam)+
 
 WorldParamVersion <- VERSION EQUALS <Number>        { p.WorldParams["version"] = cleanString(text) }
-WorldParamId      <- ID EQUALS <StringLike>         { p.WorldParams["id"] = strings.TrimSpace(text) }
+WorldParamId      <- ID EQUALS <StringLike>         { p.WorldParams["id"] = cleanString(text) }
 WorldParamName    <- NAME EQUALS <StringLike?>       { p.WorldParams["name"] = strings.TrimSpace(text) }
 WorldParamExpanded <- EXPANDED EQUALS <StringLike?> { p.WorldParams["expanded"] = strings.TrimSpace(text) }
 
