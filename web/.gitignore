@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Build assets from `make.sh`.
+public/topolith.wasm
+public/wasm_exec.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
